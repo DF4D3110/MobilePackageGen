@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
@@ -10,19 +10,18 @@
 
   <ItemGroup>
     <PackageReference Include="RawDiskLib" Version="0.2.1" />
-    <PackageReference Include="LTRData.DiscUtils.Vhd" Version="1.0.55" />
-    <PackageReference Include="LTRData.DiscUtils.Vhdx" Version="1.0.55" />
-    <PackageReference Include="LTRData.DiscUtils.Wim" Version="1.0.55" />
+    <PackageReference Include="LTRData.DiscUtils.Vhd" Version="1.0.85" />
+    <PackageReference Include="LTRData.DiscUtils.Vhdx" Version="1.0.85" />
+    <PackageReference Include="LTRData.DiscUtils.Wim" Version="1.0.85" />
     <PackageReference Include="System.Net.Http" Version="4.3.4" />
     <PackageReference Include="System.Private.Uri" Version="4.3.2" />
     <PackageReference Include="System.Text.RegularExpressions" Version="4.3.1" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\thirdparty\EDLProgram2VHDX\QualcommEDLProgramStream\QualcommEDLProgramStream.csproj" />
     <ProjectReference Include="..\Archives.DiscUtils\Archives.DiscUtils.csproj" />
-    <ProjectReference Include="..\..\thirdparty\Img2Ffu\Img2Ffu.Library\Img2Ffu.Library.csproj" />
-    <ProjectReference Include="..\..\thirdparty\StorageSpace\StorageSpace\StorageSpace.csproj" />
+    <ProjectReference Include="..\Img2Ffu.Library\Img2Ffu.Library.csproj" />
+    <ProjectReference Include="..\StorageSpace\StorageSpace.csproj" />
   </ItemGroup>
 
 </Project>

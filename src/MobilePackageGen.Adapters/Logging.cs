@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) The LumiaWOA and DuoWOA authors
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -27,9 +27,23 @@ namespace MobilePackageGen
 
         private static readonly ConsoleColor originalConsoleColor;
 
+        private static readonly bool _hasConsole;
+
+        public static bool HasConsole => _hasConsole;
+
         static Logging()
         {
-            originalConsoleColor = Console.ForegroundColor;
+            try
+            {
+                originalConsoleColor = Console.ForegroundColor;
+                _ = Console.WindowHeight;
+                _hasConsole = true;
+            }
+            catch
+            {
+                _hasConsole = false;
+                originalConsoleColor = ConsoleColor.Gray;
+            }
         }
 
         public static void ShowProgress(long CurrentProgress,
@@ -76,14 +90,22 @@ namespace MobilePackageGen
 
         public static string GetDISMLikeProgressBar(double percentage)
         {
-            if (percentage > 100)
+            if (double.IsNaN(percentage) || double.IsInfinity(percentage) || percentage < 0)
+            {
+                percentage = 0;
+            }
+            else if (percentage > 100)
             {
                 percentage = 100;
             }
 
-            int eqsLength = (int)Math.Floor((double)percentage * 55u / 100u);
+            int eqsLength = (int)Math.Floor(percentage * 55.0 / 100.0);
+            eqsLength = Math.Max(0, Math.Min(55, eqsLength));
 
-            string bases = $"{new string('=', eqsLength)}{new string(' ', 55 - eqsLength)}";
+            int spacesLength = 55 - eqsLength;
+            if (spacesLength < 0) spacesLength = 0;
+
+            string bases = $"{new string('=', eqsLength)}{new string(' ', spacesLength)}";
 
             bases = bases.Insert(28, $"{percentage:0.00}%");
 
@@ -145,6 +167,10 @@ namespace MobilePackageGen
                     {
                         Console.WriteLine($"\r{dateTime:'['HH':'mm':'ss']'}[{msg}] {message}");
                     }
+                    else if (!_hasConsole)
+                    {
+                        Console.WriteLine($"{dateTime:'['HH':'mm':'ss']'}[{msg}] {message}");
+                    }
                     else
                     {
                         int leftPos = Console.GetCursorPosition().Left;
@@ -167,7 +193,10 @@ namespace MobilePackageGen
                     Console.Write($"\r{dateTime:'['HH':'mm':'ss']'}[{msg}] {message}");
                 }
 
-                Console.ForegroundColor = originalConsoleColor;
+                if (_hasConsole)
+                {
+                    Console.ForegroundColor = originalConsoleColor;
+                }
             }
         }
     }

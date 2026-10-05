@@ -1,4 +1,4 @@
-﻿using DiscUtils;
+using DiscUtils;
 using DiscUtils.Streams;
 using StorageSpace;
 using System.Xml.Linq;
@@ -297,7 +297,7 @@ namespace MobilePackageGen
                 // --------------------------
 
                 string componentStatus = $"Creating package {i + 1} of {packagesCount} - {Path.GetFileName(AppFolder)}";
-                if (componentStatus.Length > Console.BufferWidth - 24 - 1)
+                if (Logging.HasConsole && componentStatus.Length > Console.BufferWidth - 24 - 1)
                 {
                     componentStatus = $"{componentStatus[..(Console.BufferWidth - 24 - 4)]}...";
                 }
@@ -370,7 +370,8 @@ namespace MobilePackageGen
 
                 if (i != packagesCount - 1)
                 {
-                    Console.SetCursorPosition(0, Console.CursorTop - 1);
+                    if (Logging.HasConsole)
+                        Console.SetCursorPosition(0, Console.CursorTop - 1);
 
                     Logging.Log(new string(' ', componentStatus.Length));
                     Logging.Log(Logging.GetDISMLikeProgressBar(100));
@@ -386,7 +387,8 @@ namespace MobilePackageGen
                         Logging.Log(Logging.GetDISMLikeProgressBar(100));
                     }
 
-                    Console.SetCursorPosition(0, Console.CursorTop - 4);
+                    if (Logging.HasConsole)
+                        Console.SetCursorPosition(0, Console.CursorTop - 4);
                 }
                 else
                 {

@@ -1,4 +1,4 @@
-﻿using MobilePackageGen.Adapters;
+using MobilePackageGen.Adapters;
 
 namespace MobilePackageGen
 {
@@ -63,8 +63,7 @@ namespace MobilePackageGen
             {
                 case ".xml":
                     {
-                        Stream rawProgramStream = QualcommEDLProgramStream.ParseProgramXML.GetStream(file, 4096)!;
-                        return new Adapters.RawDisk.Disk(rawProgramStream);
+                        return null;
                     }
                 case ".wim":
                     {

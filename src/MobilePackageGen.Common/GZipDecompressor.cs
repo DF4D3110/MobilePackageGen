@@ -1,9 +1,9 @@
-﻿using DiscUtils;
+using DiscUtils;
 using System.IO.Compression;
 
 namespace MobilePackageGen.GZip
 {
-    internal static class GZipDecompressor
+    public static class GZipDecompressor
     {
         public static Stream OpenFileAndDecompressAsGZip(this IFileSystem mainfileSystem, string vhdFileName)
         {

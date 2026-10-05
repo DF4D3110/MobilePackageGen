@@ -1,4 +1,4 @@
-﻿using DiscUtils;
+using DiscUtils;
 using System.Runtime.InteropServices;
 using System.Xml.Serialization;
 
@@ -18,6 +18,9 @@ namespace MobilePackageGen
             List<CabinetFileInfo> fileMappings = [];
 
             IFileSystem fileSystem = partition.FileSystem!;
+
+            bool SafeExists(string path) { try { return fileSystem.Exists(path); } catch { return false; } }
+            bool SafeFileExists(string path) { try { return fileSystem.FileExists(path); } catch { return false; } }
 
             string WindowsServicingPackagesFolderPath = @"Windows\servicing\Packages";
             string WindowsSideBySideManifestsFolderPath = @"Windows\WinSxS\Manifests";
@@ -137,7 +140,7 @@ namespace MobilePackageGen
                     if (normalized.StartsWith(@"windows\system32") && architecture?.Contains("arm64.arm") == true)
                     {
                         string newpath = normalized.Replace(@"windows\system32", @"windows\sysarm32");
-                        if (fileSystem.FileExists(newpath))
+                        if (SafeFileExists(newpath))
                         {
                             normalized = newpath;
                         }
@@ -149,12 +152,12 @@ namespace MobilePackageGen
                         normalized = normalized[1..];
                     }
 
-                    if (!fileSystem.Exists(normalized) && normalized.EndsWith(".manifest"))
+                    if (!SafeExists(normalized) && normalized.EndsWith(".manifest"))
                     {
                         normalized = Path.Combine(WindowsSideBySideManifestsFolderPath, normalized.Split('\\')[^1]);
                     }
 
-                    if (!fileSystem.Exists(normalized) && architecture?.Contains("arm64.arm") == true && fileSystem.Exists(normalized.Replace(@"windows\sysarm32", @"windows\system32")))
+                    if (!SafeExists(normalized) && architecture?.Contains("arm64.arm") == true && SafeExists(normalized.Replace(@"windows\sysarm32", @"windows\system32")))
                     {
                         normalized = normalized.Replace(@"windows\sysarm32", @"windows\system32");
                     }
@@ -176,10 +179,22 @@ namespace MobilePackageGen
 
                                     diskPartition.Stream.Seek(0, SeekOrigin.Begin);
 
+                                    long declaredSize = 0;
+                                    try { declaredSize = long.Parse(packageFile.Size); } catch { }
+                                    long actualSize = declaredSize;
+                                    try
+                                    {
+                                        if (diskPartition.Stream.CanSeek && diskPartition.Stream.Length > 0)
+                                        {
+                                            actualSize = Math.Min(declaredSize, diskPartition.Stream.Length);
+                                        }
+                                    }
+                                    catch { }
+
                                     cabinetFileInfo = new CabinetFileInfo()
                                     {
                                         FileName = packageFile.Cabpath,
-                                        FileStream = new Substream(diskPartition.Stream, long.Parse(packageFile.Size)),
+                                        FileStream = new Substream(diskPartition.Stream, actualSize),
                                         Attributes = FileAttributes.Normal,
                                         DateTime = DateTime.Now
                                     };
@@ -195,7 +210,7 @@ namespace MobilePackageGen
                     }
                     else
                     {
-                        if (!fileSystem.FileExists(normalized))
+                        if (!SafeFileExists(normalized))
                         {
                             string[] partitionNamesWithLinks = ["data", "efiesp", "osdata", "dpp", "mmos"];
 
@@ -251,25 +266,36 @@ namespace MobilePackageGen
                         }
                         else
                         {
-                            Stream fileStream = fileSystem.OpenFile(normalized, FileMode.Open, FileAccess.Read);
-                            if (isManifest && USE_UNCOMPRESSED_MANIFEST_FILES)
+                            try
                             {
-                                // LibSxS is only supported on Windows
-                                if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                                Stream fileStream = fileSystem.OpenFile(normalized, FileMode.Open, FileAccess.Read);
+                                if (isManifest && USE_UNCOMPRESSED_MANIFEST_FILES)
                                 {
-                                    throw new NotImplementedException("The compression algorithm this data block uses is not currently implemented.");
+                                    if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                                    {
+                                        throw new NotImplementedException("The compression algorithm this data block uses is not currently implemented.");
+                                    }
+
+                                    fileStream = LibSxS.Delta.DeltaAPI.LoadManifest(fileStream);
                                 }
 
-                                fileStream = LibSxS.Delta.DeltaAPI.LoadManifest(fileStream);
-                            }
+                                FileAttributes attrs = FileAttributes.Normal;
+                                DateTime dt = DateTime.Now;
+                                try { attrs = fileSystem.GetAttributes(normalized) & ~FileAttributes.ReparsePoint; } catch { }
+                                try { dt = fileSystem.GetLastWriteTime(normalized); } catch { }
 
-                            cabinetFileInfo = new CabinetFileInfo()
+                                cabinetFileInfo = new CabinetFileInfo()
+                                {
+                                    FileName = packageFile.Cabpath,
+                                    FileStream = fileStream,
+                                    Attributes = attrs,
+                                    DateTime = dt
+                                };
+                            }
+                            catch
                             {
-                                FileName = packageFile.Cabpath,
-                                FileStream = fileStream,
-                                Attributes = fileSystem.GetAttributes(normalized) & ~FileAttributes.ReparsePoint,
-                                DateTime = fileSystem.GetLastWriteTime(normalized)
-                            };
+                                cabinetFileInfo = null;
+                            }
                         }
                     }
 
@@ -279,7 +305,7 @@ namespace MobilePackageGen
                     }
                     else
                     {
-                        Logging.Log($"\rError: File not found! {normalized}\n", LoggingLevel.Error);
+                        Logging.Log($"\rWarning: File not found (skipped): {normalized}\n", LoggingLevel.Warning);
                     }
                 }
             }
@@ -289,11 +315,16 @@ namespace MobilePackageGen
 
         public static void BuildCBS(IEnumerable<IDisk> disks, string destination_path, UpdateHistory.UpdateHistory? updateHistory)
         {
+            BuildCBS(disks, destination_path, updateHistory, null);
+        }
+
+        public static void BuildCBS(IEnumerable<IDisk> disks, string destination_path, UpdateHistory.UpdateHistory? updateHistory, HashSet<string>? selectedPackages)
+        {
             Logging.Log();
             Logging.Log("Building CBS Cabinet Files...");
             Logging.Log();
 
-            BuildCabinets(disks, destination_path, updateHistory);
+            BuildCabinets(disks, destination_path, updateHistory, selectedPackages);
 
             Logging.Log();
             Logging.Log("Cleaning up...");
@@ -350,9 +381,10 @@ namespace MobilePackageGen
             return count;
         }
 
-        private static void BuildCabinets(IEnumerable<IDisk> disks, string outputPath, UpdateHistory.UpdateHistory? updateHistory)
+        private static void BuildCabinets(IEnumerable<IDisk> disks, string outputPath, UpdateHistory.UpdateHistory? updateHistory, HashSet<string>? selectedPackages = null)
         {
             int packagesCount = GetPackageCount(disks);
+            List<(string cabFile, string error)> buildErrors = new();
 
             IEnumerable<IPartition> partitionsWithCbsServicing = GetPartitionsWithServicing(disks);
 
@@ -366,13 +398,15 @@ namespace MobilePackageGen
 
                 foreach (string manifestFile in manifestFiles)
                 {
+                    string cabFileName = "";
+                    string cabFile = "";
                     try
                     {
                         Stream stream = fileSystem.OpenFile(manifestFile, FileMode.Open, FileAccess.Read);
                         XmlSerializer serializer = new(typeof(XmlMum.Assembly));
                         XmlMum.Assembly cbs = (XmlMum.Assembly)serializer.Deserialize(stream)!;
 
-                        (string cabFileName, string cabFile) = BuildMetadataHandler.GetPackageNamingForCBS(cbs, updateHistory);
+                        (cabFileName, cabFile) = BuildMetadataHandler.GetPackageNamingForCBS(cbs, updateHistory);
 
                         if (string.IsNullOrEmpty(cabFileName) && string.IsNullOrEmpty(cabFile))
                         {
@@ -399,8 +433,14 @@ namespace MobilePackageGen
                             cabFile = Path.Combine(outputPath, cabFile);
                         }
 
+                        if (selectedPackages != null && !selectedPackages.Contains(Path.GetFileName(cabFileName)))
+                        {
+                            i++;
+                            continue;
+                        }
+
                         string componentStatus = $"Creating package {i + 1} of {packagesCount} - {Path.GetFileName(cabFileName)}";
-                        if (componentStatus.Length > Console.BufferWidth - 24 - 1)
+                        if (Logging.HasConsole && componentStatus.Length > Console.BufferWidth - 24 - 1)
                         {
                             componentStatus = $"{componentStatus[..(Console.BufferWidth - 24 - 4)]}...";
                         }
@@ -459,7 +499,8 @@ namespace MobilePackageGen
 
                         if (i != packagesCount - 1)
                         {
-                            Console.SetCursorPosition(0, Console.CursorTop - 1);
+                            if (Logging.HasConsole)
+                                Console.SetCursorPosition(0, Console.CursorTop - 1);
 
                             Logging.Log(new string(' ', componentStatus.Length));
                             Logging.Log(Logging.GetDISMLikeProgressBar(100));
@@ -475,7 +516,8 @@ namespace MobilePackageGen
                                 Logging.Log(Logging.GetDISMLikeProgressBar(100));
                             }
 
-                            Console.SetCursorPosition(0, Console.CursorTop - 4);
+                            if (Logging.HasConsole)
+                                Console.SetCursorPosition(0, Console.CursorTop - 4);
                         }
                         else
                         {
@@ -498,8 +540,38 @@ namespace MobilePackageGen
                     catch (Exception ex)
                     {
                         Logging.Log($"Error: CAB creation failed! {ex.Message}", LoggingLevel.Error);
+                        Logging.Log($"Stack Trace: {ex.StackTrace}", LoggingLevel.Error);
+                        buildErrors.Add((cabFile, ex.Message));
+
+                        try
+                        {
+                            if (!string.IsNullOrEmpty(cabFile) && !File.Exists(cabFile))
+                            {
+                                string? dir = Path.GetDirectoryName(cabFile);
+                                if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                                {
+                                    Directory.CreateDirectory(dir);
+                                }
+                                string status = "";
+                                CabinetBuilder.BuildCab(cabFile, Array.Empty<CabinetFileInfo>(), ref status);
+                            }
+                        }
+                        catch { }
                     }
                 }
+            }
+
+            if (buildErrors.Count > 0)
+            {
+                Logging.Log();
+                Logging.Log("=== CAB Build Errors Summary ===", LoggingLevel.Error);
+                foreach (var (file, error) in buildErrors)
+                {
+                    Logging.Log($"  FAILED: {file}", LoggingLevel.Error);
+                    Logging.Log($"    Error: {error}", LoggingLevel.Error);
+                }
+                Logging.Log($"Total: {buildErrors.Count} failed package(s)", LoggingLevel.Error);
+                Logging.Log("=================================", LoggingLevel.Error);
             }
         }
     }
