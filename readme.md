@@ -1,6 +1,6 @@
 # MobilePackageGen - 移动设备包生成工具
 
-基于 [WSK Tools](https://github.com/gus33000/WSK) v1.0.4 独立重构的版本（fork 自上游 [MobileTooling/MobilePackageGen](https://github.com/MobileTooling/MobilePackageGen)），支持从 FFU / VHDX / VHD / 分区中提取 CBS、SPKG、Driver 包。
+基于 WSK Tools v1.0.4 独立重构的版本（fork 自上游 [MobileTooling/MobilePackageGen](https://github.com/MobileTooling/MobilePackageGen)），支持从 FFU / VHDX / VHD / 分区中提取 CBS、SPKG、Driver 包。
 
 ## 项目结构
 
