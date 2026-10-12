@@ -94,7 +94,7 @@ MobilePackageGen.exe <Path to image file(s)> <Output folder CBSs>
 |---|---|---|---|
 | LTRData.DiscUtils | [LTRData/DiscUtils](https://github.com/LTRData/DiscUtils)（NuGet，升级版） | MIT | NuGet 包 |
 | WPMT.Core（压缩/哈希/目录库） | 自 WPMT（Windows Package Management Tool）迁移，以 `D:\wpmtcli\Compression` 修正版为权威 | - | `src/WPMT.Core` |
-| NSudo（TrustedInstaller 提权） | [UUP-Project/NSudo](https://github.com/UUP-Project/NSudo) | MIT | `src/MobilePackageGen.Common/NSudo` |
+| NSudo（TrustedInstaller 提权） | [M2TeamArchived/NSudo](https://github.com/M2TeamArchived/NSudo) | MIT | `src/MobilePackageGen.Common/NSudo` |
 | msdelta.dll（DCM 压缩 API） | Windows 系统 DLL | 系统组件 | 运行期调用 |
 | Img2Ffu | [WOA-Project/Img2Ffu](https://github.com/WOA-Project/Img2Ffu) | MIT | `src/Img2Ffu.Library`（本地版，含压缩实现） |
 | StorageSpace | [gus33000/StorageSpace](https://github.com/gus33000/StorageSpace) | MIT | `src/StorageSpace`（本地版）；`thirdparty/StorageSpace` 保留子模块声明 |
