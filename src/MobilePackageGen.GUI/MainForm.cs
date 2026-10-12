@@ -8,7 +8,6 @@ namespace MobilePackageGen.GUI
         private List<FMFileInfo> allFMFiles = new();
         private IEnumerable<IDisk>? loadedDisks;
         private UpdateHistory.UpdateHistory? updateHistory;
-        private string inputFilePath = "";
         private ToolStripDropDownButton languageBtn = new();
         private ToolStripDropDownButton helpBtn = new();
 
@@ -112,12 +111,11 @@ namespace MobilePackageGen.GUI
                 Font = new System.Drawing.Font("Microsoft YaHei UI", 9F)
             };
             var title = new Label { Text = "MobilePackageGen GUI", Font = new System.Drawing.Font("Microsoft YaHei UI", 14F, System.Drawing.FontStyle.Bold), AutoSize = true, Location = new System.Drawing.Point(20, 15) };
-            var ver = new Label { Text = "WSK Tools v1.0.4 Preview Build 260826", AutoSize = true, Location = new System.Drawing.Point(22, 45) };
-            var preview = new Label { Text = "⚠ 测试版本 — 部分功能可能存在无法正常工作", Font = new System.Drawing.Font("Microsoft YaHei UI", 9F, System.Drawing.FontStyle.Bold), ForeColor = System.Drawing.Color.Red, AutoSize = true, Location = new System.Drawing.Point(22, 68) };
-            var desc = new Label { Text = "MobilePackageGen 图形界面\n从 WIM 镜像提取 CBS 功能包\n支持包选择、XML预览、CAB结构预览\n支持文件搜索和批量提取", AutoSize = false, Size = new System.Drawing.Size(420, 100), Location = new System.Drawing.Point(22, 100) };
-            var info = new Label { Text = "组织: WinStory 2026\nhttps://wiki.win-story.cn\n编译者: DF4D3110", AutoSize = false, Size = new System.Drawing.Size(420, 80), Location = new System.Drawing.Point(22, 210) };
+            var ver = new Label { Text = "OneCore Image Designer Preview", AutoSize = true, Location = new System.Drawing.Point(22, 45) };
+            var desc = new Label { Text = "MobilePackageGen 图形界面\n从 WIM 镜像提取 CBS 功能包\n支持包选择、XML预览、CAB结构预览\n支持文件搜索和批量提取", AutoSize = false, Size = new System.Drawing.Size(420, 100), Location = new System.Drawing.Point(22, 80) };
+            var info = new Label { Text = "组织: WinStory 2026\nhttps://wiki.win-story.cn\n编译者: DF4D3110", AutoSize = false, Size = new System.Drawing.Size(420, 80), Location = new System.Drawing.Point(22, 195) };
             var ok = new Button { Text = "确定", Size = new System.Drawing.Size(80, 28), Location = new System.Drawing.Point(180, 290), DialogResult = DialogResult.OK };
-            dlg.Controls.AddRange(new Control[] { title, ver, preview, desc, info, ok });
+            dlg.Controls.AddRange(new Control[] { title, ver, desc, info, ok });
             dlg.AcceptButton = ok;
             dlg.ShowDialog(this);
         }
@@ -127,65 +125,87 @@ namespace MobilePackageGen.GUI
             using var dlg = new OpenFileDialog();
             dlg.Filter = Lang.GetString("ImageFilter");
             dlg.Title = Lang.GetString("OpenImageTitle");
+            dlg.Multiselect = true;   // storage-pool images are often split across multiple VHDs
             if (dlg.ShowDialog() != DialogResult.OK) return;
 
-            inputFilePath = dlg.FileName;
-            LoadImage(inputFilePath);
+            string[] paths = dlg.FileNames;
+            if (paths.Length == 0) return;
+
+            LoadImage(paths);
         }
 
-        private void LoadImage(string path)
+        private void LoadImage(string[] paths)
         {
-            try
+            string outputPath = txtOutput.Text;
+            var ui = this;
+
+            SetProgress(Lang.GetString("LoadingImage"), 10);
+
+            Task.Run(() =>
             {
-                lblStatus.Text = Lang.GetString("LoadingImage");
-                progressBar.Value = 10;
-                Application.DoEvents();
-
-                loadedDisks = DiskLoader.LoadDisks([path]);
-                if (loadedDisks == null || !loadedDisks.Any())
+                try
                 {
-                    MessageBox.Show(Lang.GetString("LoadFailed"), Lang.GetString("BuildErrorTitle"), MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    lblStatus.Text = Lang.GetString("LoadFailed");
-                    progressBar.Value = 0;
-                    return;
+                    var disks = DiskLoader.LoadDisks(paths);
+                    if (disks == null || !disks.Any())
+                    {
+                        ui.Invoke(() =>
+                        {
+                            MessageBox.Show(Lang.GetString("LoadFailed"), Lang.GetString("BuildErrorTitle"), MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            SetProgress(Lang.GetString("LoadFailed"), 0);
+                        });
+                        return;
+                    }
+
+                    ui.Invoke(() => SetProgress(Lang.GetString("EnumeratingPackages"), 30));
+
+                    var uh = BuildMetadataHandler.GetUpdateHistory(disks);
+                    ui.Invoke(() => SetProgress("Enumerating CBS/SPKG/Drivers...", 40));
+                    var pkgs = PackageEnumerator.EnumerateAll(disks, outputPath);
+                    ui.Invoke(() => SetProgress("Enumerating FM files...", 75));
+                    var fms = EnumerateFMFiles(disks);
+
+                    ui.Invoke(() =>
+                    {
+                        loadedDisks = disks;
+                        updateHistory = uh;
+                        allPackages = pkgs;
+                        allFMFiles = fms;
+                        SetProgress("Populating tree...", 85);
+                        PopulateTree();
+                        SetProgress(string.Format(Lang.GetString("PackagesFound"),
+                            paths.Length == 1 ? Path.GetFileName(paths[0]) : $"{paths.Length} images",
+                            allPackages.Count + allFMFiles.Count,
+                            allPackages.Count(p => p.Type == PackageType.CBS),
+                            allPackages.Count(p => p.Type == PackageType.SPKG),
+                            allPackages.Count(p => p.Type == PackageType.Driver)) + $"  FM: {allFMFiles.Count}  Appx: {allPackages.Count(p => p.Type == PackageType.Appx)}", 100);
+                    });
                 }
-
-                lblStatus.Text = Lang.GetString("EnumeratingPackages");
-                progressBar.Value = 30;
-                Application.DoEvents();
-
-                updateHistory = BuildMetadataHandler.GetUpdateHistory(loadedDisks);
-                allPackages = PackageEnumerator.EnumerateAll(loadedDisks, txtOutput.Text);
-                allFMFiles = EnumerateFMFiles(loadedDisks);
-
-                progressBar.Value = 80;
-                Application.DoEvents();
-
-                PopulateTree();
-
-                progressBar.Value = 100;
-                lblStatus.Text = string.Format(Lang.GetString("PackagesFound"),
-                    Path.GetFileName(path), allPackages.Count + allFMFiles.Count,
-                    allPackages.Count(p => p.Type == PackageType.CBS),
-                    allPackages.Count(p => p.Type == PackageType.SPKG),
-                    allPackages.Count(p => p.Type == PackageType.Driver)) + $"  FM: {allFMFiles.Count}";
-            }
-            catch (Exception ex)
-            {
-                var detail = ex.Message;
-                var inner = ex.InnerException;
-                int depth = 0;
-                while (inner != null && depth < 5)
+                catch (Exception ex)
                 {
-                    detail += $"\n\n[Inner {depth + 1}] {inner.GetType().Name}: {inner.Message}";
-                    inner = inner.InnerException;
-                    depth++;
+                    var detail = ex.Message;
+                    var inner = ex.InnerException;
+                    int depth = 0;
+                    while (inner != null && depth < 5)
+                    {
+                        detail += $"\n\n[Inner {depth + 1}] {inner.GetType().Name}: {inner.Message}";
+                        inner = inner.InnerException;
+                        depth++;
+                    }
+                    detail += $"\n\nStackTrace:\n{ex.StackTrace}";
+                    ui.Invoke(() =>
+                    {
+                        MessageBox.Show($"{Lang.GetString("ErrorLoading")}\n{detail}", Lang.GetString("BuildErrorTitle"), MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        SetProgress("Error: " + ex.Message, 0);
+                    });
                 }
-                detail += $"\n\nStackTrace:\n{ex.StackTrace}";
-                MessageBox.Show($"{Lang.GetString("ErrorLoading")}\n{detail}", Lang.GetString("BuildErrorTitle"), MessageBoxButtons.OK, MessageBoxIcon.Error);
-                lblStatus.Text = "Error: " + ex.Message;
-                progressBar.Value = 0;
-            }
+            });
+        }
+
+        private void SetProgress(string status, int value)
+        {
+            lblStatus.Text = status;
+            progressBar.Value = Math.Max(0, Math.Min(100, value));
+            Application.DoEvents();
         }
 
         private List<FMFileInfo> EnumerateFMFiles(IEnumerable<IDisk> disks)
@@ -438,7 +458,8 @@ namespace MobilePackageGen.GUI
                     selected.Count(p => p.Type == PackageType.CBS),
                     selected.Count(p => p.Type == PackageType.SPKG),
                     selected.Count(p => p.Type == PackageType.Driver),
-                    txtOutput.Text) + (selectedFM.Count > 0 ? $"\nFM Files: {selectedFM.Count}" : ""),
+                    txtOutput.Text) + (selectedFM.Count > 0 ? $"\nFM Files: {selectedFM.Count}" : "") +
+                    $"\nAppx: {selected.Count(p => p.Type == PackageType.Appx)}",
                 Lang.GetString("ConfirmBuildTitle"), MessageBoxButtons.YesNo, MessageBoxIcon.Question);
 
             if (result != DialogResult.Yes) return;
@@ -448,58 +469,100 @@ namespace MobilePackageGen.GUI
 
         private void BuildPackages(List<PackageInfo> selected)
         {
+            var ui = this;
+            var disks = loadedDisks;
+            string outputPath = txtOutput.Text;
+            bool uncompressed = chkUncompressed.Checked;
+
             btnBuild.Enabled = false;
             btnOpen.Enabled = false;
-            progressBar.Value = 0;
+            SetProgress(Lang.GetString("BuildingCBS"), 0);
+
+            // Route a copy of all logs into the build output directory.
+            Logging.SetLogFile(Path.Combine(outputPath, "build.log"));
 
             var cbsNames = new HashSet<string>(selected.Where(p => p.Type == PackageType.CBS).Select(p => Path.GetFileName(p.CabFileName)));
             var spkgNames = new HashSet<string>(selected.Where(p => p.Type == PackageType.SPKG).Select(p => Path.GetFileName(p.CabFileName)));
             var driverNames = new HashSet<string>(selected.Where(p => p.Type == PackageType.Driver).Select(p => Path.GetFileName(p.CabFileName)));
+            var appxNames = new HashSet<string>(selected.Where(p => p.Type == PackageType.Appx)
+                .Select(p => p.Name.Split('_')[0] + "_" + p.Name.Split('_')[^1]));
 
-            try
+            Task.Run(() =>
             {
-                lblStatus.Text = Lang.GetString("BuildingCBS");
-                progressBar.Value = 10;
-                Application.DoEvents();
-                if (cbsNames.Count > 0)
-                    CBSBuilder.BuildCBS(loadedDisks!, txtOutput.Text, updateHistory, cbsNames);
-
-                lblStatus.Text = Lang.GetString("BuildingSPKG");
-                progressBar.Value = 40;
-                Application.DoEvents();
-                if (spkgNames.Count > 0)
-                    SPKGBuilder.BuildSPKG(loadedDisks!, txtOutput.Text, updateHistory, spkgNames);
-
-                lblStatus.Text = Lang.GetString("BuildingDrivers");
-                progressBar.Value = 70;
-                Application.DoEvents();
-                if (driverNames.Count > 0)
-                    DriverBuilder.BuildDrivers(loadedDisks!, txtOutput.Text, updateHistory, driverNames);
-
-                var selectedFM = allFMFiles.Where(f => f.Selected).ToList();
-                if (selectedFM.Count > 0)
+                try
                 {
-                    lblStatus.Text = "Extracting FM Files...";
-                    progressBar.Value = 85;
-                    Application.DoEvents();
-                    ExtractFMFiles(selectedFM, txtOutput.Text);
-                }
+                    ui.Invoke(() => SetProgress(Lang.GetString("BuildingCBS"), 10));
+                    if (cbsNames.Count > 0)
+                    {
+                        CBSBuilder.UseUncompressedManifests = uncompressed;
+                        CBSBuilder.BuildCBS(disks!, outputPath, updateHistory, cbsNames);
+                    }
 
-                progressBar.Value = 100;
-                lblStatus.Text = string.Format(Lang.GetString("PackagesFound"), "", selected.Count + selectedFM.Count, 0, 0, 0);
-                MessageBox.Show(string.Format(Lang.GetString("BuildCompleteMsg"), selected.Count + selectedFM.Count, txtOutput.Text),
-                    Lang.GetString("BuildCompleteTitle"), MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
-            catch (Exception ex)
-            {
-                lblStatus.Text = "Build error: " + ex.Message;
-                MessageBox.Show($"Build error: {ex.Message}", Lang.GetString("BuildErrorTitle"), MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-            finally
-            {
-                btnBuild.Enabled = true;
-                btnOpen.Enabled = true;
-            }
+                    ui.Invoke(() => SetProgress(Lang.GetString("BuildingSPKG"), 40));
+                    if (spkgNames.Count > 0)
+                        SPKGBuilder.BuildSPKG(disks!, outputPath, updateHistory, spkgNames);
+
+                    ui.Invoke(() => SetProgress(Lang.GetString("BuildingDrivers"), 70));
+                    if (driverNames.Count > 0)
+                        DriverBuilder.BuildDrivers(disks!, outputPath, updateHistory, driverNames);
+
+                    if (appxNames.Count > 0)
+                    {
+                        ui.Invoke(() => SetProgress("Extracting Appx Packages...", 78));
+                        int appIdx = 0;
+                        foreach (var disk in disks!)
+                        {
+                            foreach (var partition in disk.Partitions)
+                            {
+                                var fs = partition.FileSystem;
+                                if (fs == null) continue;
+                                try
+                                {
+                                    if (fs.DirectoryExists("AppData") && fs.DirectoryExists("WindowsApps"))
+                                    {
+                                        AppBuilder.ExtractAppLicenses(fs, outputPath, new List<AppxPackage>(), appxNames);
+                                        AppBuilder.ExtractAppPackages(fs, outputPath, appxNames.Count, ref appIdx, new List<AppxPackage>(), appxNames);
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    Logging.Log($"App extraction error: {ex.Message}", LoggingLevel.Error);
+                                }
+                            }
+                        }
+                    }
+
+                    var selectedFM = allFMFiles.Where(f => f.Selected).ToList();
+                    if (selectedFM.Count > 0)
+                    {
+                        ui.Invoke(() => SetProgress("Extracting FM Files...", 85));
+                        ExtractFMFiles(selectedFM, outputPath);
+                    }
+
+                    ui.Invoke(() =>
+                    {
+                        SetProgress(string.Format(Lang.GetString("PackagesFound"), "", selected.Count + selectedFM.Count, 0, 0, 0), 100);
+                        MessageBox.Show(string.Format(Lang.GetString("BuildCompleteMsg"), selected.Count + selectedFM.Count, outputPath),
+                            Lang.GetString("BuildCompleteTitle"), MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    });
+                }
+                catch (Exception ex)
+                {
+                    ui.Invoke(() =>
+                    {
+                        SetProgress("Build error: " + ex.Message, 0);
+                        MessageBox.Show($"Build error: {ex.Message}", Lang.GetString("BuildErrorTitle"), MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    });
+                }
+                finally
+                {
+                    ui.Invoke(() =>
+                    {
+                        btnBuild.Enabled = true;
+                        btnOpen.Enabled = true;
+                    });
+                }
+            });
         }
 
         private void ExtractFMFiles(List<FMFileInfo> fmFiles, string outputPath)

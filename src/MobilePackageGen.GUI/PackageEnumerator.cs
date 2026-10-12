@@ -14,6 +14,58 @@ namespace MobilePackageGen.GUI
             packages.AddRange(EnumerateCBS(disks, outputPath, updateHistory));
             packages.AddRange(EnumerateSPKG(disks, outputPath, updateHistory));
             packages.AddRange(EnumerateDrivers(disks, outputPath, updateHistory));
+            packages.AddRange(EnumerateAppx(disks, outputPath));
+
+            return packages;
+        }
+
+        public static List<PackageInfo> EnumerateAppx(IEnumerable<IDisk> disks, string outputPath)
+        {
+            var packages = new List<PackageInfo>();
+
+            // PreInstalled partitions expose extracted APPX in WindowsApps and licenses in AppData.
+            foreach (var partition in disks.SelectMany(d => d.Partitions))
+            {
+                var fs = partition.FileSystem;
+                if (fs == null) continue;
+
+                try
+                {
+                    if (!(fs.DirectoryExists("AppData") && fs.DirectoryExists("WindowsApps")))
+                    {
+                        continue;
+                    }
+
+                    var appFolders = fs.GetDirectories("WindowsApps", "*", SearchOption.TopDirectoryOnly);
+                    foreach (var appFolder in appFolders)
+                    {
+                        string folderName = Path.GetFileName(appFolder);
+                        if (folderName.Equals("deleted", StringComparison.InvariantCultureIgnoreCase))
+                        {
+                            continue;
+                        }
+
+                        // Ex: "Microsoft.Dynamics365.Guides_1.0.100.0_arm__8wekyb3d8bbwe"
+                        string[] parts = folderName.Split('_');
+                        string appName = parts.Length > 0 ? parts[0] : folderName;
+                        string architecture = parts.Length >= 3 ? parts[^3] : "";
+                        string version = parts.Length >= 2 ? parts[1] : "";
+
+                        packages.Add(new PackageInfo
+                        {
+                            Type = PackageType.Appx,
+                            Name = folderName,
+                            CabFileName = folderName,
+                            CabFilePath = Path.Combine(outputPath, "PreInstalled", "Apps", folderName),
+                            PartitionName = partition.Name.Replace("\0", "-"),
+                            Architecture = architecture,
+                            Version = version,
+                            SourceManifest = appFolder
+                        });
+                    }
+                }
+                catch { }
+            }
 
             return packages;
         }

@@ -27,12 +27,14 @@ namespace MobilePackageGen.GUI
             this.btnPreview = new ToolStripButton();
             this.statusStrip1 = new StatusStrip();
             this.lblStatus = new ToolStripStatusLabel();
-            this.progressBar = new ToolStripProgressBar();
+            this.panelProgress = new Panel();
+            this.progressBar = new ProgressBar();
             this.splitContainer1 = new SplitContainer();
             this.treePackages = new TreeView();
             this.panelDetails = new Panel();
             this.lblDetails = new Label();
             this.panelBottom = new Panel();
+            this.chkUncompressed = new CheckBox();
             this.btnBuild = new Button();
             this.btnOutput = new Button();
             this.txtOutput = new TextBox();
@@ -106,9 +108,8 @@ namespace MobilePackageGen.GUI
             this.btnPreview.Click += new EventHandler(this.btnPreview_Click);
 
             this.statusStrip1.Items.AddRange(new ToolStripItem[] {
-            this.lblStatus,
-            this.progressBar});
-            this.statusStrip1.Location = new Point(0, 673);
+            this.lblStatus});
+            this.statusStrip1.Location = new Point(0, 698);
             this.statusStrip1.Name = "statusStrip1";
             this.statusStrip1.Size = new Size(1200, 22);
             this.statusStrip1.TabIndex = 1;
@@ -118,8 +119,19 @@ namespace MobilePackageGen.GUI
             this.lblStatus.Size = new Size(1000, 17);
             this.lblStatus.Text = "Ready. Open an image file to enumerate packages.";
 
+            this.panelProgress.Dock = DockStyle.Bottom;
+            this.panelProgress.Location = new Point(0, 673);
+            this.panelProgress.Name = "panelProgress";
+            this.panelProgress.Padding = new Padding(8, 3, 8, 3);
+            this.panelProgress.Size = new Size(1200, 25);
+            this.panelProgress.TabIndex = 4;
+
+            this.progressBar.Dock = DockStyle.Fill;
+            this.progressBar.Location = new Point(8, 3);
+            this.progressBar.Maximum = 100;
             this.progressBar.Name = "progressBar";
-            this.progressBar.Size = new Size(150, 16);
+            this.progressBar.Size = new Size(1184, 19);
+            this.progressBar.TabIndex = 0;
 
             this.splitContainer1.Dock = DockStyle.Fill;
             this.splitContainer1.Location = new Point(0, 27);
@@ -158,6 +170,7 @@ namespace MobilePackageGen.GUI
             this.lblDetails.TabIndex = 0;
             this.lblDetails.Text = "Select a package to view details.";
 
+            this.panelBottom.Controls.Add(this.chkUncompressed);
             this.panelBottom.Controls.Add(this.btnBuild);
             this.panelBottom.Controls.Add(this.btnOutput);
             this.panelBottom.Controls.Add(this.txtOutput);
@@ -200,11 +213,19 @@ namespace MobilePackageGen.GUI
             this.lblOutput.TabIndex = 0;
             this.lblOutput.Text = "Output Folder:";
 
+            this.chkUncompressed.AutoSize = true;
+            this.chkUncompressed.Location = new Point(100, 6);
+            this.chkUncompressed.Name = "chkUncompressed";
+            this.chkUncompressed.Size = new Size(230, 19);
+            this.chkUncompressed.TabIndex = 4;
+            this.chkUncompressed.Text = "Decompress manifests (plain XML)";
+
             this.AutoScaleDimensions = new SizeF(7F, 15F);
             this.AutoScaleMode = AutoScaleMode.Font;
-            this.ClientSize = new Size(1200, 695);
+            this.ClientSize = new Size(1200, 720);
             this.Controls.Add(this.splitContainer1);
             this.Controls.Add(this.panelBottom);
+            this.Controls.Add(this.panelProgress);
             this.Controls.Add(this.statusStrip1);
             this.Controls.Add(this.toolStrip1);
             this.Name = "MainForm";
@@ -220,6 +241,7 @@ namespace MobilePackageGen.GUI
             this.panelDetails.ResumeLayout(false);
             this.panelBottom.ResumeLayout(false);
             this.panelBottom.PerformLayout();
+            this.panelProgress.ResumeLayout(false);
             this.ResumeLayout(false);
             this.PerformLayout();
         }
@@ -235,12 +257,14 @@ namespace MobilePackageGen.GUI
         private ToolStripButton btnPreview;
         private StatusStrip statusStrip1;
         private ToolStripStatusLabel lblStatus;
-        private ToolStripProgressBar progressBar;
+        private Panel panelProgress;
+        private ProgressBar progressBar;
         private SplitContainer splitContainer1;
         private TreeView treePackages;
         private Panel panelDetails;
         private Label lblDetails;
         private Panel panelBottom;
+        private CheckBox chkUncompressed;
         private Button btnBuild;
         private Button btnOutput;
         private TextBox txtOutput;

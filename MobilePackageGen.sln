@@ -31,6 +31,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StorageSpace", "src\Storage
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DeflateBlockCompressor", "thirdparty\DeflateBlockCompressor\DeflateBlockCompressor.csproj", "{F8540A35-C61E-4198-9187-49201FA69257}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{827E0CD3-B72D-47B6-A68D-7590B98EB39B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WPMT.Core", "src\WPMT.Core\WPMT.Core.csproj", "{4A12763B-1F28-42AD-831C-C919629D9350}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -197,12 +201,24 @@ Global
 		{F8540A35-C61E-4198-9187-49201FA69257}.Release|x64.Build.0 = Release|Any CPU
 		{F8540A35-C61E-4198-9187-49201FA69257}.Release|x86.ActiveCfg = Release|Any CPU
 		{F8540A35-C61E-4198-9187-49201FA69257}.Release|x86.Build.0 = Release|Any CPU
+		{4A12763B-1F28-42AD-831C-C919629D9350}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4A12763B-1F28-42AD-831C-C919629D9350}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4A12763B-1F28-42AD-831C-C919629D9350}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{4A12763B-1F28-42AD-831C-C919629D9350}.Debug|x64.Build.0 = Debug|Any CPU
+		{4A12763B-1F28-42AD-831C-C919629D9350}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{4A12763B-1F28-42AD-831C-C919629D9350}.Debug|x86.Build.0 = Debug|Any CPU
+		{4A12763B-1F28-42AD-831C-C919629D9350}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4A12763B-1F28-42AD-831C-C919629D9350}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4A12763B-1F28-42AD-831C-C919629D9350}.Release|x64.ActiveCfg = Release|Any CPU
+		{4A12763B-1F28-42AD-831C-C919629D9350}.Release|x64.Build.0 = Release|Any CPU
+		{4A12763B-1F28-42AD-831C-C919629D9350}.Release|x86.ActiveCfg = Release|Any CPU
+		{4A12763B-1F28-42AD-831C-C919629D9350}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{9649595F-B516-4F7B-ABDC-14F64EAACD62} = {F5B17283-1A90-BB27-80ED-CD85235CDCEA}
+		{4A12763B-1F28-42AD-831C-C919629D9350} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 	EndGlobalSection
 EndGlobal
-

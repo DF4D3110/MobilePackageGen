@@ -4,7 +4,8 @@ namespace MobilePackageGen.GUI
     {
         CBS,
         SPKG,
-        Driver
+        Driver,
+        Appx
     }
 
     public class PackageInfo
@@ -28,6 +29,7 @@ namespace MobilePackageGen.GUI
             PackageType.CBS => "CBS",
             PackageType.SPKG => "SPKG",
             PackageType.Driver => "Driver",
+            PackageType.Appx => "Appx",
             _ => "Unknown"
         };
 

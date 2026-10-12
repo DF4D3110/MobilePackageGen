@@ -6,9 +6,24 @@
         {
             Console.WriteLine(@"
 Mobile Package Generator Tool
-WSK Tools v1.0.4 Preview Build 260826
-⚠ 测试版本 — 部分功能可能存在无法正常工作
+OneCore Image Designer Preview
 ");
+
+            // Elevate to TrustedInstaller when not already running as TI.
+            if (!TrustedInstallerHelper.IsTrustedInstaller())
+            {
+                try
+                {
+                    Console.WriteLine("Relaunching under TrustedInstaller...");
+                    TrustedInstallerHelper.ElevateSelf(typeof(Program).Assembly.Location, args);
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[Warning] Failed to elevate to TrustedInstaller: {ex.Message}");
+                    Console.WriteLine("Continuing with current privileges; some operations may fail.");
+                }
+            }
 
             if (args.Length < 2)
             {
@@ -16,8 +31,21 @@ WSK Tools v1.0.4 Preview Build 260826
                 return;
             }
 
-            string[] inputArgs = args[..^1];
-            string outputFolder = args[^1];
+            // Optional switches (removed from the input list before resolving inputs/output):
+            //   --uncompressed-manifests : decompress DCM manifests to plain XML in output cabinets
+            List<string> argList = [.. args];
+
+            if (argList.Remove("--uncompressed-manifests") || argList.Remove("/u"))
+            {
+                CBSBuilder.UseUncompressedManifests = true;
+                Console.WriteLine("Manifests will be decompressed to plain XML (DCM compression disabled).");
+            }
+
+            string[] inputArgs = argList[..^1].ToArray();
+            string outputFolder = argList[^1];
+
+            // Route a copy of all logs into the build output directory.
+            Logging.SetLogFile(Path.Combine(outputFolder, "build.log"));
 
             IEnumerable<IDisk> disks = DiskLoader.LoadDisks(inputArgs);
 
@@ -54,6 +82,8 @@ WSK Tools v1.0.4 Preview Build 260826
             Console.WriteLine("Examples:");
             Console.WriteLine(@"	 D: C:\OutputCabs");
             Console.WriteLine(@"	 D: E: F: C:\OutputCabs");
+            Console.WriteLine();
+            Console.WriteLine("Optional switch:  --uncompressed-manifests  (decompress DCM manifests to plain XML in output cabinets)");
             Console.WriteLine();
             Console.WriteLine("You need to pass 2 parameters:");
             Console.WriteLine(@"	<Path to FFU File> <Output folder CBSs>");
