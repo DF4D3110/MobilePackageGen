@@ -599,11 +599,11 @@ namespace MobilePackageGen
 
                             cabFileName = Path.Combine(partitionName, packageName);
 
-                            cabFile = Path.Combine(outputPath, $"{cabFileName}.cab");
+                            cabFile = OutputLayout.Cbs(outputPath, $"{cabFileName}.cab").FullPath;
                         }
                         else
                         {
-                            cabFile = Path.Combine(outputPath, cabFile);
+                            cabFile = OutputLayout.Cbs(outputPath, cabFile).FullPath;
                         }
 
                         if (selectedPackages != null && !selectedPackages.Contains(Path.GetFileName(cabFileName)))

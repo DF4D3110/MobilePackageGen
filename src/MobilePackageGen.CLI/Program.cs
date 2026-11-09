@@ -9,6 +9,12 @@ Mobile Package Generator Tool
 OneCore Image Designer Preview
 ");
 
+            if (args.Length == 1 && string.Equals(args[0], "--self-test", StringComparison.OrdinalIgnoreCase))
+            {
+                RunSelfTest();
+                return;
+            }
+
             // Elevate to TrustedInstaller when not already running as TI.
             if (!TrustedInstallerHelper.IsTrustedInstaller())
             {
@@ -70,6 +76,20 @@ OneCore Image Designer Preview
 
             DriverBuilder.BuildDrivers(disks, outputFolder, updateHistory);
 
+            var plans = Directory.Exists(outputFolder)
+                ? Directory.GetFiles(outputFolder, "*", SearchOption.AllDirectories)
+                    .Select(file => OutputPathPlanner.Plan(outputFolder, PackageOutputKind.Other,
+                        Path.GetRelativePath(outputFolder, file), preserveLeadingKind: false))
+                    .ToList()
+                : [];
+            OutputValidationResult validation = new FinalValidationService().Validate(outputFolder, plans);
+            string validationPath = Path.Combine(outputFolder, "final-validation.txt");
+            File.WriteAllText(validationPath, validation.IsValid
+                ? $"VALID{Environment.NewLine}Checked {plans.Count} output files.{Environment.NewLine}"
+                : string.Join(Environment.NewLine, validation.Diagnostics.Select(x => $"[{x.Severity}] {x.Message} {x.Path}")));
+            if (!validation.IsValid)
+                throw new InvalidOperationException($"Final output validation failed. See {validationPath}");
+
             Console.WriteLine("The operation completed successfully.");
         }
 
@@ -96,10 +116,27 @@ OneCore Image Designer Preview
             Console.WriteLine(@"	 D:\LUN0.vhdx C:\OutputCabs");
             Console.WriteLine(@"	 D:\LUN0.vhdx D:\LUN1.vhdx D:\LUN2.vhdx C:\OutputCabs");
             Console.WriteLine();
-            Console.WriteLine("You need to pass 2 parameters:");
-            Console.WriteLine(@"	<Path to WIM File> <Output folder CBSs>");
-            Console.WriteLine("Example:");
-            Console.WriteLine(@"	 D:\Flash.wim C:\OutputCabs");
+            Console.WriteLine("Run synthetic output/parser checks without an image: --self-test");
+        }
+
+        private static void RunSelfTest()
+        {
+            ParseResult<OemInputMetadata> parsed = OemInputParser.Parse(
+                "<OEMInput><AdditionalFM>DriveX\\FM\\Microsoft\\base.xml</AdditionalFM></OEMInput>");
+            if (!parsed.IsValid || parsed.Value.FeatureManifestPaths.Count != 1)
+                throw new InvalidOperationException("OEMInput parser self-test failed.");
+
+            bool traversalRejected = false;
+            try { OutputPathPlanner.Plan(Path.GetTempPath(), PackageOutputKind.FeatureManifest, "..\\escape.xml", false); }
+            catch (InvalidOperationException) { traversalRejected = true; }
+            if (!traversalRejected)
+                throw new InvalidOperationException("Output traversal self-test failed.");
+            string root = Path.Combine(Path.GetTempPath(), "MobilePackageGenSelfTest");
+            if (!OutputLayout.Cbs(root, "sample.cab").RelativePath.Equals("CBS\\sample.cab", StringComparison.OrdinalIgnoreCase) ||
+                !OutputLayout.OemInput(root).RelativePath.Equals("OEMInput.xml", StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("Output layout self-test failed.");
+
+            Console.WriteLine("Self-test passed: OEMInput parsing and output traversal protection.");
         }
     }
 }

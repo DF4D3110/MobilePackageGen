@@ -136,11 +136,11 @@ namespace MobilePackageGen
 
                             cabFileName = Path.Combine(partitionName, packageName);
 
-                            cabFile = Path.Combine(outputPath, $"{cabFileName}.cab");
+                            cabFile = OutputLayout.Driver(outputPath, $"{cabFileName}.cab").FullPath;
                         }
                         else
                         {
-                            cabFile = Path.Combine(outputPath, cabFile);
+                            cabFile = OutputLayout.Driver(outputPath, cabFile).FullPath;
                         }
 
                         if (selectedPackages != null && !selectedPackages.Contains(Path.GetFileName(cabFileName)))
