@@ -3,16 +3,34 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>
-    <UseWindowsForms>true</UseWindowsForms>
+    <UseWPF>true</UseWPF>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Platforms>x86;x64;ARM64</Platforms>
-    <ApplicationIcon></ApplicationIcon>
+    <AssemblyName>MobilePackageGen.Studio</AssemblyName>
+    <AssemblyTitle>MobilePackageGen Studio</AssemblyTitle>
+    <AssemblyDescription>Windows image package extraction and build workspace.</AssemblyDescription>
+    <FileDescription>Windows image package extraction and build workspace.</FileDescription>
+    <Product>MobilePackageGen Studio</Product>
+    <Description>Windows image package extraction and build workspace.</Description>
+    <Company>DF4D3110</Company>
+    <Copyright>Copyright © 2026 DF4D3110</Copyright>
+    <Version>1.0.0</Version>
+    <FileVersion>1.0.0.0</FileVersion>
+    <InformationalVersion>1.0.0-preview</InformationalVersion>
+    <ApplicationIcon>Assets\MobilePackageGen.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\MobilePackageGen.Common\MobilePackageGen.Common.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="MainForm.cs;MainForm.Designer.cs;PreviewForm.cs;PreviewForm.Designer.cs;Program.cs" />
+    <EmbeddedResource Remove="Strings.resx;Strings.*.resx" />
+    <None Include="Strings.resx" />
+    <None Include="Strings.*.resx" />
   </ItemGroup>
 
 </Project>

@@ -1,0 +1,26 @@
+<Application x:Class="MobilePackageGen.GUI.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             StartupUri="MainWindow.xaml">
+    <Application.Resources>
+        <ResourceDictionary>
+            <SolidColorBrush x:Key="WindowBackgroundBrush" Color="#F5F7FB"/>
+            <SolidColorBrush x:Key="SidebarBrush" Color="#152238"/>
+            <SolidColorBrush x:Key="CardBrush" Color="#FFFFFF"/>
+            <SolidColorBrush x:Key="AccentBrush" Color="#2E75D6"/>
+            <SolidColorBrush x:Key="MutedBrush" Color="#65738B"/>
+            <SolidColorBrush x:Key="BorderBrush" Color="#DCE3EF"/>
+            <Style TargetType="TextBlock">
+                <Setter Property="FontFamily" Value="Segoe UI"/>
+                <Setter Property="Foreground" Value="#1B2638"/>
+            </Style>
+            <Style TargetType="Button">
+                <Setter Property="FontFamily" Value="Segoe UI"/>
+                <Setter Property="Padding" Value="14,8"/>
+                <Setter Property="Margin" Value="0,0,8,0"/>
+                <Setter Property="BorderBrush" Value="#C9D3E3"/>
+                <Setter Property="Background" Value="#FFFFFF"/>
+            </Style>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

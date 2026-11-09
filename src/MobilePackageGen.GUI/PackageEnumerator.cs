@@ -1,3 +1,4 @@
+using System.IO;
 using System.Xml.Serialization;
 using MobilePackageGen;
 using MobilePackageGen.GZip;
