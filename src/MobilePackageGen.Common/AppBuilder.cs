@@ -241,7 +241,7 @@ namespace MobilePackageGen
             foreach (string LicenseFile in LicenseFiles)
             {
                 // Fallback
-                string destFolder = Path.Combine(destination_path, "PreInstalled", "Licenses");
+                string destFolder = OutputLayout.Appx(destination_path, Path.Combine("PreInstalled", "Licenses")).Directory;
                 string destName = Path.GetFileName(LicenseFile);
 
                 // Actual
@@ -258,7 +258,7 @@ namespace MobilePackageGen
                     x.ID.Equals(PFM, StringComparison.InvariantCultureIgnoreCase));
                 if (matchingAppListItem != null)
                 {
-                    destFolder = Path.Combine(destination_path, matchingAppListItem.Path.Replace("$(mspackageroot)\\", "", StringComparison.InvariantCultureIgnoreCase));
+                    destFolder = OutputLayout.Appx(destination_path, matchingAppListItem.Path.Replace("$(mspackageroot)\\", "", StringComparison.InvariantCultureIgnoreCase)).FullPath;
                     destName = matchingAppListItem.License;
                 }
 
@@ -328,7 +328,7 @@ namespace MobilePackageGen
                 // --------------------------
 
                 // Fallback
-                string rootDestination = Path.Combine(destination_path, "PreInstalled", "Apps");
+                string rootDestination = OutputLayout.Appx(destination_path, Path.Combine("PreInstalled", "Apps")).FullPath;
 
                 // Actual
                 // Order by count of CPUIDs because we prefer packages that strictly bind to the same architecture instead of wow fallback
@@ -338,7 +338,7 @@ namespace MobilePackageGen
                     (x.Architectures.Length == 0 || x.Architectures.Any(y => y.Equals(appArchitecture, StringComparison.InvariantCultureIgnoreCase))));
                 if (matchingAppListItem != null)
                 {
-                    rootDestination = Path.Combine(destination_path, matchingAppListItem.Path.Replace("$(mspackageroot)\\", "", StringComparison.InvariantCultureIgnoreCase), matchingAppListItem.Name);
+                    rootDestination = OutputLayout.Appx(destination_path, Path.Combine(matchingAppListItem.Path.Replace("$(mspackageroot)\\", "", StringComparison.InvariantCultureIgnoreCase), matchingAppListItem.Name)).FullPath;
                 }
 
                 string destination = Path.Combine(rootDestination, appPackageName);

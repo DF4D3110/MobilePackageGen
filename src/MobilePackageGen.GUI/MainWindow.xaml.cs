@@ -317,11 +317,75 @@ public partial class MainWindow : Window
         StatusText.Text = "当前页面：构建结果";
     }
 
+    private void NavigateCat_Click(object sender, RoutedEventArgs e)
+    {
+        ShowPage("cat");
+        StatusText.Text = "当前页面：CAT 签名";
+        CheckCatEnvironment();
+    }
+
+    private void NavigateValidation_Click(object sender, RoutedEventArgs e)
+    {
+        ShowPage("validation");
+        StatusText.Text = "当前页面：最终校验";
+    }
+
+    private void CheckCatEnvironment_Click(object sender, RoutedEventArgs e) => CheckCatEnvironment();
+
+    private void CheckCatEnvironment()
+    {
+        var options = new CatBuilderOptions();
+        var messages = new List<string>();
+        messages.Add(string.IsNullOrWhiteSpace(options.MakecatPath)
+            ? "阻塞：未配置 makecat.exe 路径。"
+            : File.Exists(options.MakecatPath) ? $"makecat.exe：{options.MakecatPath}" : $"阻塞：makecat.exe 不存在：{options.MakecatPath}");
+        messages.Add(string.IsNullOrWhiteSpace(options.SigntoolPath)
+            ? "阻塞：未配置 signtool.exe 路径。"
+            : File.Exists(options.SigntoolPath) ? $"signtool.exe：{options.SigntoolPath}" : $"阻塞：signtool.exe 不存在：{options.SigntoolPath}");
+        messages.Add(string.IsNullOrWhiteSpace(options.CertificateThumbprint) && string.IsNullOrWhiteSpace(options.CertificatePath)
+            ? "阻塞：未配置签名证书指纹或 PFX 路径。"
+            : "证书配置已提供；执行签名时将继续验证证书可用性。");
+        CatEnvironmentText.Text = string.Join("\n", messages);
+    }
+
+    private void RunValidation_Click(object sender, RoutedEventArgs e)
+    {
+        string outputRoot = OutputPathTextBox.Text.Trim();
+        if (string.IsNullOrWhiteSpace(outputRoot))
+        {
+            ValidationReportTextBox.Text = "阻塞：未设置输出目录。";
+            return;
+        }
+
+        var plans = new List<OutputPathPlan>();
+        if (Directory.Exists(outputRoot))
+        {
+            foreach (string file in Directory.GetFiles(outputRoot, "*", SearchOption.AllDirectories))
+            {
+                string relative = Path.GetRelativePath(outputRoot, file);
+                PackageOutputKind kind = relative.StartsWith("CBS\\", StringComparison.OrdinalIgnoreCase) ? PackageOutputKind.CBS :
+                    relative.StartsWith("SPKG\\", StringComparison.OrdinalIgnoreCase) ? PackageOutputKind.SPKG :
+                    relative.StartsWith("Driver\\", StringComparison.OrdinalIgnoreCase) ? PackageOutputKind.Driver :
+                    relative.StartsWith("Appx\\", StringComparison.OrdinalIgnoreCase) ? PackageOutputKind.Appx :
+                    relative.Equals("OEMInput.xml", StringComparison.OrdinalIgnoreCase) ? PackageOutputKind.OEMInput :
+                    PackageOutputKind.FeatureManifest;
+                plans.Add(OutputPathPlanner.Plan(outputRoot, kind, relative, preserveLeadingKind: false));
+            }
+        }
+
+        var result = new FinalValidationService().Validate(outputRoot, plans);
+        ValidationReportTextBox.Text = result.Diagnostics.Count == 0
+            ? $"校验通过：{outputRoot}\n已检查 {plans.Count} 个输出文件。"
+            : string.Join("\n", result.Diagnostics.Select(d => $"[{d.Severity}] {d.Message} {d.Path}"));
+    }
+
     private void ShowPage(string page)
     {
         BrowsePage.Visibility = page == "browse" ? Visibility.Visible : Visibility.Collapsed;
         BuildPage.Visibility = page == "build" ? Visibility.Visible : Visibility.Collapsed;
         ResultsPage.Visibility = page == "results" ? Visibility.Visible : Visibility.Collapsed;
+        CatPage.Visibility = page == "cat" ? Visibility.Visible : Visibility.Collapsed;
+        ValidationPage.Visibility = page == "validation" ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void SetBusy(bool busy, string status)

@@ -1,119 +1,166 @@
 using System.Diagnostics;
-using System.Runtime.InteropServices;
+using System.Security.Cryptography.X509Certificates;
 using WPMT.Core.Catalog;
 
-namespace MobilePackageGen
+namespace MobilePackageGen;
+
+public sealed class CatBuilderOptions
 {
-    /// <summary>
-    /// Inline catalog (.cat) builder for CBS packages.
-    /// Pipeline: CDF (WPMT CdfBuilder, hashes the actual files) ->
-    ///           makecat (produces the unsigned catalog with member hashes) ->
-    ///           signtool (signs with the TestCatSigner certificate).
-    /// Because the hashes come from the same files that go into the cabinet,
-    /// the catalog always matches the cabinet content - imageapp hash checks pass.
-    /// </summary>
-    public static class CatBuilder
+    public string MakecatPath { get; init; } = string.Empty;
+    public string SigntoolPath { get; init; } = string.Empty;
+    public string CertificateThumbprint { get; init; } = string.Empty;
+    public string? CertificatePath { get; init; }
+    public bool ValidateCertificate { get; init; } = true;
+    public TimeSpan Timeout { get; init; } = TimeSpan.FromMinutes(5);
+}
+
+public sealed record CatToolResult(string ToolPath, int ExitCode, string StandardOutput, string StandardError);
+public sealed record CatBuildResult(string CatalogPath, string CdfPath, IReadOnlyList<CatToolResult> ToolResults);
+
+public interface ICatProcessRunner
+{
+    CatToolResult Run(string executable, IReadOnlyList<string> arguments, TimeSpan timeout);
+}
+
+public sealed class CatBuilderEnvironmentException(string message) : InvalidOperationException(message);
+
+public sealed class DefaultCatProcessRunner : ICatProcessRunner
+{
+    public CatToolResult Run(string executable, IReadOnlyList<string> arguments, TimeSpan timeout)
     {
-        // Tool locations. Default to the 17763 ADK tools; override via properties.
-        public static string MakecatPath { get; set; } = @"E:\Assessment and Deployment Kit\adk-src\adk\17763\Windows Kits\10\tools\bin\i386\makecat.exe";
-        public static string SigntoolPath { get; set; } = @"E:\Assessment and Deployment Kit\adk-src\adk\17763\Windows Kits\10\tools\bin\i386\signtool.exe";
-
-        // TestCatSigner certificate (CurrentUser\My)
-        public const string TestCatSignerThumbprint = "BC92FF5B9634EA707AD592A38C871B29C9A8216D";
-
-        /// <summary>
-        /// Writes a makecat-compatible CDF that lists every file to be hashed.
-        /// </summary>
-        public static void WriteCdf(string cdfPath, string catalogName, string resultDir, IEnumerable<CatalogFileEntry> files)
+        var startInfo = new ProcessStartInfo { FileName = executable, UseShellExecute = false,
+            RedirectStandardOutput = true, RedirectStandardError = true, CreateNoWindow = true };
+        foreach (string argument in arguments)
+            startInfo.ArgumentList.Add(argument);
+        using Process process = Process.Start(startInfo)
+            ?? throw new CatBuilderEnvironmentException($"Unable to start catalog tool '{executable}'.");
+        string stdout = process.StandardOutput.ReadToEnd();
+        string stderr = process.StandardError.ReadToEnd();
+        if (!process.WaitForExit((int)timeout.TotalMilliseconds))
         {
-            CdfBuilder cdf = new(cdfPath, catalogName, resultDir, 0x00010001, "SHA256")
-            {
-                NonConformantFilesFallbackFlat = false,
-                PageHashes = false,
-                CatalogVersion = 2
-            };
-
-            foreach (CatalogFileEntry file in files)
-            {
-                // WPMT's CdfBuilder writes "<hash>{Identifier}={FilePath}" which makecat accepts
-                // (verified: both <HASH> and <hash> prefixes parse, tag is arbitrary).
-                cdf.Hashes.Add(new CatalogHash(file.Tag, file.FilePath));
-            }
-
-            cdf.Save();
+            try { process.Kill(true); } catch { }
+            throw new CatBuilderEnvironmentException($"Catalog tool '{executable}' timed out.");
         }
+        return new CatToolResult(executable, process.ExitCode, stdout, stderr);
+    }
+}
 
-        /// <summary>
-        /// Runs makecat on the CDF, then signs the produced catalog with signtool.
-        /// </summary>
-        /// <param name="cdfPath">Path to the CDF file.</param>
-        /// <param name="catalogFullPath">Expected output catalog path (resultDir\name) - verified after build.</param>
-        public static void BuildCatalog(string cdfPath, string catalogFullPath)
-        {
-            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            {
-                throw new PlatformNotSupportedException("Catalog building is only supported on Windows (makecat/signtool).");
-            }
+public sealed class CatBuilderService
+{
+    private readonly CatBuilderOptions options;
+    private readonly ICatProcessRunner runner;
 
-            Run(MakecatPath, $"-v \"{cdfPath}\"");
-
-            if (!File.Exists(catalogFullPath))
-            {
-                throw new FileNotFoundException($"makecat did not produce the expected catalog: {catalogFullPath}");
-            }
-
-            Run(SigntoolPath, $"sign /sha1 {TestCatSignerThumbprint} /fd SHA256 \"{catalogFullPath}\"");
-
-            if (!File.Exists(catalogFullPath) || new FileInfo(catalogFullPath).Length == 0)
-            {
-                throw new FileNotFoundException($"signtool failed to produce a signed catalog: {catalogFullPath}");
-            }
-        }
-
-        /// <summary>
-        /// Convenience: write CDF + build + sign in one call.
-        /// </summary>
-        public static void BuildCatalog(string cdfPath, string catalogName, string resultDir, IEnumerable<CatalogFileEntry> files)
-        {
-            WriteCdf(cdfPath, catalogName, resultDir, files);
-            BuildCatalog(cdfPath, Path.Combine(resultDir, catalogName));
-        }
-
-        private static void Run(string exePath, string arguments)
-        {
-            ProcessStartInfo psi = new()
-            {
-                FileName = exePath,
-                Arguments = arguments,
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                CreateNoWindow = true
-            };
-
-            using Process process = Process.Start(psi)!;
-
-            string stdout = process.StandardOutput.ReadToEnd();
-            string stderr = process.StandardError.ReadToEnd();
-
-            process.WaitForExit();
-
-            Logging.Log(stdout.TrimEnd(), LoggingLevel.Information);
-            if (!string.IsNullOrEmpty(stderr))
-            {
-                Logging.Log(stderr.TrimEnd(), LoggingLevel.Warning);
-            }
-
-            if (process.ExitCode != 0)
-            {
-                throw new InvalidOperationException(
-                    $"{Path.GetFileName(exePath)} failed with exit code {process.ExitCode}.\n{stderr}");
-            }
-        }
+    public CatBuilderService(CatBuilderOptions? options = null, ICatProcessRunner? runner = null)
+    {
+        this.options = options ?? new CatBuilderOptions();
+        this.runner = runner ?? new DefaultCatProcessRunner();
     }
 
-    /// <summary>
-    /// One catalog member: tag (name inside the catalog) + path to the file to hash.
-    /// </summary>
-    public readonly record struct CatalogFileEntry(string Tag, string FilePath);
+    public CatBuildResult Build(string cdfPath, string catalogFullPath)
+    {
+        if (!OperatingSystem.IsWindows() && runner is DefaultCatProcessRunner)
+            throw new PlatformNotSupportedException("Catalog building requires Windows makecat.exe and signtool.exe.");
+        RequireTool(options.MakecatPath, "makecat");
+        RequireTool(options.SigntoolPath, "signtool");
+        if (!File.Exists(cdfPath))
+            throw new FileNotFoundException("The catalog definition file was not found.", cdfPath);
+        string? outputDirectory = Path.GetDirectoryName(catalogFullPath);
+        if (string.IsNullOrWhiteSpace(outputDirectory))
+            throw new ArgumentException("The catalog output path must include a directory.", nameof(catalogFullPath));
+        Directory.CreateDirectory(outputDirectory);
+        ValidateCertificate();
+
+        var results = new List<CatToolResult>();
+        results.Add(RunAndLog(options.MakecatPath, ["-v", cdfPath]));
+        EnsureCatalog(catalogFullPath, "makecat");
+        var signArguments = new List<string> { "sign" };
+        if (!string.IsNullOrWhiteSpace(options.CertificatePath))
+        {
+            signArguments.Add("/f");
+            signArguments.Add(options.CertificatePath);
+        }
+        else
+        {
+            signArguments.Add("/sha1");
+            signArguments.Add(options.CertificateThumbprint);
+        }
+        signArguments.Add("/fd");
+        signArguments.Add("SHA256");
+        signArguments.Add(catalogFullPath);
+        results.Add(RunAndLog(options.SigntoolPath, signArguments));
+        EnsureCatalog(catalogFullPath, "signtool");
+        return new CatBuildResult(catalogFullPath, cdfPath, results);
+    }
+
+    private CatToolResult RunAndLog(string executable, IReadOnlyList<string> arguments)
+    {
+        CatToolResult result = runner.Run(executable, arguments, options.Timeout);
+        if (!string.IsNullOrWhiteSpace(result.StandardOutput))
+            Logging.Log(result.StandardOutput.TrimEnd(), LoggingLevel.Information);
+        if (!string.IsNullOrWhiteSpace(result.StandardError))
+            Logging.Log(result.StandardError.TrimEnd(), LoggingLevel.Warning);
+        if (result.ExitCode != 0)
+            throw new InvalidOperationException($"{Path.GetFileName(executable)} failed with exit code {result.ExitCode}.\n{result.StandardError}");
+        return result;
+    }
+
+    private void ValidateCertificate()
+    {
+        if (!options.ValidateCertificate || !string.IsNullOrWhiteSpace(options.CertificatePath))
+        {
+            if (!string.IsNullOrWhiteSpace(options.CertificatePath) && !File.Exists(options.CertificatePath))
+                throw new CatBuilderEnvironmentException($"Signing certificate was not found: {options.CertificatePath}");
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(options.CertificateThumbprint))
+            throw new CatBuilderEnvironmentException("No signing certificate thumbprint was configured.");
+        using var store = new X509Store(StoreName.My, StoreLocation.CurrentUser);
+        store.Open(OpenFlags.ReadOnly);
+        string thumbprint = options.CertificateThumbprint.Replace(" ", string.Empty, StringComparison.Ordinal);
+        if (!store.Certificates.Cast<X509Certificate2>().Any(x =>
+            string.Equals(x.Thumbprint?.Replace(" ", string.Empty, StringComparison.Ordinal), thumbprint, StringComparison.OrdinalIgnoreCase)))
+            throw new CatBuilderEnvironmentException($"Signing certificate '{options.CertificateThumbprint}' was not found in CurrentUser\\My.");
+    }
+
+    private static void RequireTool(string path, string name)
+    {
+        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+            throw new CatBuilderEnvironmentException($"Configured {name} executable was not found: {path}");
+    }
+
+    private static void EnsureCatalog(string path, string tool)
+    {
+        if (!File.Exists(path) || new FileInfo(path).Length == 0)
+            throw new InvalidOperationException($"{tool} did not produce a non-empty catalog: {path}");
+    }
 }
+
+public static class CatBuilder
+{
+    public const string TestCatSignerThumbprint = "BC92FF5B9634EA707AD592A38C871B29C9A8216D";
+    public static string MakecatPath { get; set; } = string.Empty;
+    public static string SigntoolPath { get; set; } = string.Empty;
+    public static string CertificateThumbprint { get; set; } = string.Empty;
+    public static bool ValidateCertificate { get; set; } = true;
+
+    public static void WriteCdf(string cdfPath, string catalogName, string resultDir, IEnumerable<CatalogFileEntry> files)
+    {
+        CdfBuilder cdf = new(cdfPath, catalogName, resultDir, 0x00010001, "SHA256")
+        { NonConformantFilesFallbackFlat = false, PageHashes = false, CatalogVersion = 2 };
+        foreach (CatalogFileEntry file in files)
+            cdf.Hashes.Add(new CatalogHash(file.Tag, file.FilePath));
+        cdf.Save();
+    }
+
+    public static CatBuildResult BuildCatalog(string cdfPath, string catalogFullPath) =>
+        new CatBuilderService(new CatBuilderOptions { MakecatPath = MakecatPath, SigntoolPath = SigntoolPath,
+            CertificateThumbprint = CertificateThumbprint, ValidateCertificate = ValidateCertificate }).Build(cdfPath, catalogFullPath);
+
+    public static CatBuildResult BuildCatalog(string cdfPath, string catalogName, string resultDir, IEnumerable<CatalogFileEntry> files)
+    {
+        WriteCdf(cdfPath, catalogName, resultDir, files);
+        return BuildCatalog(cdfPath, Path.Combine(resultDir, catalogName));
+    }
+}
+
+public readonly record struct CatalogFileEntry(string Tag, string FilePath);

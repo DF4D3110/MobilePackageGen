@@ -438,11 +438,11 @@ namespace MobilePackageGen
 
                             cabFileName = Path.Combine(partitionName, packageName);
 
-                            cabFile = Path.Combine(outputPath, $"{cabFileName}.spkg");
+                            cabFile = OutputLayout.Spkg(outputPath, $"{cabFileName}.spkg").FullPath;
                         }
                         else
                         {
-                            cabFile = Path.Combine(outputPath, cabFile);
+                            cabFile = OutputLayout.Spkg(outputPath, cabFile).FullPath;
                         }
 
                         if (selectedPackages != null && !selectedPackages.Contains(Path.GetFileName(cabFileName)))

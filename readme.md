@@ -133,8 +133,12 @@ MobilePackageGen.exe <Path to image file(s)> <Output folder CBSs>
 - CLI 目标框架: net8.0
 - GUI 目标框架: net8.0-windows (WPF)
 
-### GUI 重构说明
+### GUI 工作流与结构化输出
 
-GUI 使用 WPF + XAML + MVVM 工作台布局，页面分为镜像导入/内容浏览、构建配置和构建结果三个工作流阶段。当前版本支持多镜像导入、拖放输入源、CBS/SPKG/Driver/Appx/FM 筛选与选择、manifest 选项、FM 文件提取、构建日志和输出目录导航；CAT 签名、结果校验以及 QEMU/实体机启动测试不属于本轮 GUI 范围。
+GUI 使用 WPF + XAML 工作台布局，页面覆盖镜像导入/内容浏览、构建配置、结构化输出、CAT 签名和最终校验。构建结果统一写入 `DriveX` 根目录；`OEMInput.xml` 位于根目录，FM 按 OEMInput 声明的相对路径落位，CBS/SPKG/Driver/Appx 由共享输出计划决定目标路径，避免 GUI 和 CLI 各自拼接路径。
+
+CAT 签名不会在缺少 Windows ADK `makecat.exe`、`signtool.exe` 或证书时伪装成功：页面会显示明确的环境阻塞、工具路径和签名日志。最终校验可生成 JSON 或文本报告，检查目录结构、OEMInput/FM/包必需项、CAT 成员哈希、额外文件和路径穿越。
+
+真实 FFU 可作为本地外部集成输入进行验证，例如 `RM1104_1078.0053.10586.13169.13743.034D73_retail_prod_signed.ffu`，但该 2.6GB 文件不属于仓库测试夹具；本阶段不包含 QEMU 或实体机启动测试。
 
 Windows 发布文件使用 `MobilePackageGen.Studio.exe`，项目文件已设置产品名、文件描述、公司、版权、版本和多尺寸应用图标，文件属性中不会再显示默认程序集描述。

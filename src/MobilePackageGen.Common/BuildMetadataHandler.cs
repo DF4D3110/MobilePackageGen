@@ -95,11 +95,11 @@ namespace MobilePackageGen
                 return [];
             }
 
-            string[] FMs = content.Split("\n");
+            ParseResult<OemInputMetadata> parsed = OemInputParser.Parse(content);
+            foreach (OutputDiagnostic diagnostic in parsed.Diagnostics)
+                Logging.Log(diagnostic.Message, diagnostic.Severity == OutputDiagnosticSeverity.Error ? LoggingLevel.Error : LoggingLevel.Warning);
 
-            FMs = [.. FMs.Where(x => x.Contains("<AdditionalFM>")).Select(x => x.Split(">")[1].Split("<")[0])];
-
-            foreach (string FM in FMs)
+            foreach (string FM in parsed.Value.FeatureManifestPaths)
             {
                 foreach (IDisk disk in disks)
                 {
@@ -177,14 +177,13 @@ namespace MobilePackageGen
                 return;
             }
 
-            string[] FMs = content.Split("\n");
+            ParseResult<OemInputMetadata> parsed = OemInputParser.Parse(content);
+            foreach (OutputDiagnostic diagnostic in parsed.Diagnostics)
+                Logging.Log(diagnostic.Message, diagnostic.Severity == OutputDiagnosticSeverity.Error ? LoggingLevel.Error : LoggingLevel.Warning);
 
-            FMs = [.. FMs.Where(x => x.Contains("<AdditionalFM>")).Select(x => x.Split(">")[1].Split("<")[0])];
-
-            foreach (string FM in FMs)
+            foreach (string FM in parsed.Value.FeatureManifestPaths)
             {
-                string DestinationPath = FM;
-                DestinationPath = ReformatDestinationPath(DestinationPath);
+                string DestinationPath = OutputPathNormalizer.Normalize(FM);
 
                 foreach (IDisk disk in disks)
                 {
@@ -196,13 +195,14 @@ namespace MobilePackageGen
                         {
                             if (fileSystem.FileExists($@"Windows\ImageUpdate\FeatureManifest\Microsoft\{Path.GetFileName(FM)}"))
                             {
-                                string destFolder = string.Join(@"\\", DestinationPath.Split(@"\")[..^1]);
-                                if (!Directory.Exists(Path.Combine(destination_path, destFolder)))
+                                OutputPathPlan plan = OutputLayout.FeatureManifest(destination_path, DestinationPath);
+                                string destFolder = Path.GetDirectoryName(plan.FullPath)!;
+                                if (!Directory.Exists(destFolder))
                                 {
-                                    Directory.CreateDirectory(Path.Combine(destination_path, destFolder));
+                                    Directory.CreateDirectory(destFolder);
                                 }
 
-                                string destFM = Path.Combine(destination_path, DestinationPath);
+                                string destFM = plan.FullPath;
 
                                 if (!File.Exists(destFM))
                                 {
@@ -222,13 +222,14 @@ namespace MobilePackageGen
                             }
                             else if (fileSystem.FileExists($@"Windows\ImageUpdate\FeatureManifest\OEM\{Path.GetFileName(FM)}"))
                             {
-                                string destFolder = string.Join(@"\\", DestinationPath.Split(@"\")[..^1]);
-                                if (!Directory.Exists(Path.Combine(destination_path, destFolder)))
+                                OutputPathPlan plan = OutputLayout.FeatureManifest(destination_path, DestinationPath);
+                                string destFolder = Path.GetDirectoryName(plan.FullPath)!;
+                                if (!Directory.Exists(destFolder))
                                 {
-                                    Directory.CreateDirectory(Path.Combine(destination_path, destFolder));
+                                    Directory.CreateDirectory(destFolder);
                                 }
 
-                                string destFM = Path.Combine(destination_path, DestinationPath);
+                                string destFM = plan.FullPath;
 
                                 if (!File.Exists(destFM))
                                 {
@@ -269,7 +270,7 @@ namespace MobilePackageGen
                                 Directory.CreateDirectory(destination_path);
                             }
 
-                            string destOemInput = Path.Combine(destination_path, "OEMInput.xml");
+                            string destOemInput = OutputLayout.OemInput(destination_path).FullPath;
 
                             if (!File.Exists(destOemInput))
                             {
@@ -356,40 +357,9 @@ namespace MobilePackageGen
             return (cabFileName, cabFile);
         }
 
-        private static string ReformatDestinationPath(string DestinationPath)
+        public static string ReformatDestinationPath(string DestinationPath)
         {
-            if (DestinationPath[1] == ':')
-            {
-                string DriveLetter = DestinationPath[0].ToString().ToUpper();
-                string DriveLetterLessPath = DestinationPath[3..];
-
-                DestinationPath = Path.Combine($"Drive{DriveLetter}", DriveLetterLessPath);
-            }
-
-            if (DestinationPath.StartsWith(@"\\?\") && DestinationPath[5] == ':')
-            {
-                string UNCLessPath = DestinationPath[4..];
-                string DriveLetter = UNCLessPath[0].ToString().ToUpper();
-                string DriveLetterLessPath = UNCLessPath[3..];
-
-                DestinationPath = Path.Combine($"Drive{DriveLetter}", DriveLetterLessPath);
-            }
-
-            if (DestinationPath.StartsWith(@"\\?\"))
-            {
-                string UNCLessPath = DestinationPath[4..];
-
-                DestinationPath = Path.Combine("UNC", UNCLessPath);
-            }
-
-            if (DestinationPath.StartsWith('\\'))
-            {
-                string UNCLessPath = DestinationPath[2..];
-
-                DestinationPath = Path.Combine($"UNC", UNCLessPath);
-            }
-
-            return DestinationPath;
+            return OutputPathNormalizer.Normalize(DestinationPath);
         }
 
         public static (string cabFileName, string cabFile) GetPackageNamingForCBS(XmlMum.Assembly cbs, UpdateHistory.UpdateHistory? updateHistory)

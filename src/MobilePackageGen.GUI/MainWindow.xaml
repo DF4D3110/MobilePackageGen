@@ -27,10 +27,14 @@
                             Background="Transparent" Foreground="#D7E4F5" BorderThickness="0" Margin="0,0,0,8"/>
                     <Button Content="03  构建结果" HorizontalContentAlignment="Left" Click="NavigateResults_Click"
                             Background="Transparent" Foreground="#D7E4F5" BorderThickness="0"/>
+                    <Button Content="04  CAT 签名" HorizontalContentAlignment="Left" Click="NavigateCat_Click"
+                            Background="Transparent" Foreground="#D7E4F5" BorderThickness="0" Margin="0,8,0,0"/>
+                    <Button Content="05  最终校验" HorizontalContentAlignment="Left" Click="NavigateValidation_Click"
+                            Background="Transparent" Foreground="#D7E4F5" BorderThickness="0" Margin="0,8,0,0"/>
                 </StackPanel>
                 <StackPanel DockPanel.Dock="Bottom">
                     <TextBlock Text="提取与构建工作台" Foreground="#9DB1CA" FontSize="12"/>
-                    <TextBlock Text="CAT 签名与校验将在后续工作流中提供" Foreground="#7188A6" FontSize="11" TextWrapping="Wrap" Margin="0,8,0,0"/>
+                    <TextBlock Text="输出结构、CAT 签名与最终校验" Foreground="#7188A6" FontSize="11" TextWrapping="Wrap" Margin="0,8,0,0"/>
                 </StackPanel>
             </DockPanel>
         </Border>
@@ -206,6 +210,31 @@
                             <Separator Margin="0,12,0,12"/>
                             <TextBlock Text="签名与校验" FontWeight="SemiBold"/>
                             <TextBlock Text="CAT 签名、文件校验和完整性报告将在独立工作流中实现。" Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap" Margin="0,6,0,0"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+
+                <Grid Grid.Row="1" x:Name="CatPage" Visibility="Collapsed">
+                    <Border Background="{StaticResource CardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="24">
+                        <StackPanel>
+                            <TextBlock Text="CAT 签名" FontSize="26" FontWeight="SemiBold"/>
+                            <TextBlock Text="签名执行使用显式配置的 makecat.exe、signtool.exe 和证书；缺少 ADK 或证书时显示环境阻塞。" Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap" Margin="0,8,0,22"/>
+                            <TextBlock x:Name="CatEnvironmentText" Text="尚未检查 CAT 工具环境。" TextWrapping="Wrap" Margin="0,0,0,18"/>
+                            <Button Content="检查 CAT 环境" Click="CheckCatEnvironment_Click" HorizontalAlignment="Left" Background="{StaticResource AccentBrush}" Foreground="White" BorderThickness="0" Padding="18,9"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+
+                <Grid Grid.Row="1" x:Name="ValidationPage" Visibility="Collapsed">
+                    <Border Background="{StaticResource CardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="24">
+                        <StackPanel>
+                            <TextBlock Text="最终结果校验" FontSize="26" FontWeight="SemiBold"/>
+                            <TextBlock Text="检查结构化输出、OEMInput、FM 和已生成包；报告可保存为 JSON 或文本。" Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap" Margin="0,8,0,22"/>
+                            <TextBox x:Name="ValidationReportTextBox" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Height="360" BorderThickness="0" Background="#F8FAFD" Margin="0,0,0,18"/>
+                            <StackPanel Orientation="Horizontal">
+                                <Button Content="运行最终校验" Click="RunValidation_Click" Background="{StaticResource AccentBrush}" Foreground="White" BorderThickness="0" Padding="18,9"/>
+                                <Button Content="打开输出目录" Click="OpenOutput_Click"/>
+                            </StackPanel>
                         </StackPanel>
                     </Border>
                 </Grid>
