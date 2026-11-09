@@ -113,7 +113,7 @@ MobilePackageGen.exe <Path to image file(s)> <Output folder CBSs>
 ## 与上游 fork 的主要差异
 
 - 代码结构重组为 `src/` + `thirdparty/` 布局（保留上游组织方式）
-- 新增 `MobilePackageGen.GUI`（WinForms 图形界面，产品名 OneCore Image Designer Preview）与 `MobilePackageGen.CLI` 分离
+- 新增 `MobilePackageGen.GUI`（WPF 图形界面，产品名 MobilePackageGen Studio）与 `MobilePackageGen.CLI` 分离
 - `LTRData.DiscUtils` 升级（修复 WOF/XPRESS 压缩文件读取导致的数组越界崩溃）
 - **多磁盘阵列读取**：支持存储池被拆散成多个 VHD/分区镜像的场景，跨分区剥离分区链接前缀（superfloppy 回退）合并提取，防止单分区文件缺失
 - **裸文件系统镜像支持**：新增 `FileSystemImage` 适配器，可直接读取无分区表的 NTFS/FAT 卷 dump
@@ -131,4 +131,10 @@ MobilePackageGen.exe <Path to image file(s)> <Output folder CBSs>
 - 导出日期: 2026-08-30（后续持续改造至 2026-10）
 - 项目数: 15（src/ 13 + thirdparty/ 2）
 - CLI 目标框架: net8.0
-- GUI 目标框架: net8.0-windows (WinForms)
+- GUI 目标框架: net8.0-windows (WPF)
+
+### GUI 重构说明
+
+GUI 使用 WPF + XAML + MVVM 工作台布局，页面分为镜像导入/内容浏览、构建配置和构建结果三个工作流阶段。当前版本支持多镜像导入、拖放输入源、CBS/SPKG/Driver/Appx/FM 筛选与选择、manifest 选项、FM 文件提取、构建日志和输出目录导航；CAT 签名、结果校验以及 QEMU/实体机启动测试不属于本轮 GUI 范围。
+
+Windows 发布文件使用 `MobilePackageGen.Studio.exe`，项目文件已设置产品名、文件描述、公司、版权、版本和多尺寸应用图标，文件属性中不会再显示默认程序集描述。
