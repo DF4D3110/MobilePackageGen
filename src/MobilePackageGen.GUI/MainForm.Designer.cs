@@ -69,7 +69,7 @@ namespace MobilePackageGen.GUI
             this.btnOpen.DisplayStyle = ToolStripItemDisplayStyle.Text;
             this.btnOpen.Name = "btnOpen";
             this.btnOpen.Size = new Size(100, 24);
-            this.btnOpen.Text = "Open Image...";
+            this.btnOpen.Text = "打开镜像...";
             this.btnOpen.Click += new EventHandler(this.btnOpen_Click);
 
             this.toolStripSeparator1.Name = "toolStripSeparator1";
@@ -78,20 +78,20 @@ namespace MobilePackageGen.GUI
             this.btnSelectAll.DisplayStyle = ToolStripItemDisplayStyle.Text;
             this.btnSelectAll.Name = "btnSelectAll";
             this.btnSelectAll.Size = new Size(70, 24);
-            this.btnSelectAll.Text = "Select All";
+            this.btnSelectAll.Text = "全选";
             this.btnSelectAll.Click += new EventHandler(this.btnSelectAll_Click);
 
             this.btnDeselectAll.DisplayStyle = ToolStripItemDisplayStyle.Text;
             this.btnDeselectAll.Name = "btnDeselectAll";
             this.btnDeselectAll.Size = new Size(80, 24);
-            this.btnDeselectAll.Text = "Deselect All";
+            this.btnDeselectAll.Text = "全不选";
             this.btnDeselectAll.Click += new EventHandler(this.btnDeselectAll_Click);
 
             this.toolStripSeparator2.Name = "toolStripSeparator2";
             this.toolStripSeparator2.Size = new Size(6, 27);
 
             this.cmbFilter.DropDownStyle = ComboBoxStyle.DropDownList;
-            this.cmbFilter.Items.AddRange(new object[] { "All", "CBS", "SPKG", "Driver" });
+            this.cmbFilter.Items.AddRange(new object[] { "全部", "CBS", "SPKG", "Driver" });
             this.cmbFilter.Name = "cmbFilter";
             this.cmbFilter.Size = new Size(100, 28);
             this.cmbFilter.SelectedIndex = 0;
@@ -104,7 +104,7 @@ namespace MobilePackageGen.GUI
             this.btnPreview.DisplayStyle = ToolStripItemDisplayStyle.Text;
             this.btnPreview.Name = "btnPreview";
             this.btnPreview.Size = new Size(60, 28);
-            this.btnPreview.Text = "Preview";
+            this.btnPreview.Text = "预览";
             this.btnPreview.Click += new EventHandler(this.btnPreview_Click);
 
             this.statusStrip1.Items.AddRange(new ToolStripItem[] {
@@ -117,7 +117,7 @@ namespace MobilePackageGen.GUI
 
             this.lblStatus.Name = "lblStatus";
             this.lblStatus.Size = new Size(1000, 17);
-            this.lblStatus.Text = "Ready. Open an image file to enumerate packages.";
+            this.lblStatus.Text = "就绪。打开镜像文件以枚举包。";
 
             this.panelProgress.Dock = DockStyle.Bottom;
             this.panelProgress.Location = new Point(0, 673);
@@ -168,7 +168,7 @@ namespace MobilePackageGen.GUI
             this.lblDetails.Name = "lblDetails";
             this.lblDetails.Size = new Size(776, 556);
             this.lblDetails.TabIndex = 0;
-            this.lblDetails.Text = "Select a package to view details.";
+            this.lblDetails.Text = "选择一个包以查看详情。";
 
             this.panelBottom.Controls.Add(this.chkUncompressed);
             this.panelBottom.Controls.Add(this.btnBuild);

@@ -123,7 +123,12 @@ namespace MobilePackageGen.GUI
         private void btnOpen_Click(object? sender, EventArgs e)
         {
             using var dlg = new OpenFileDialog();
-            dlg.Filter = Lang.GetString("ImageFilter");
+            // Keep the default Legacy workflow Chinese and use the WinForms-required
+            // description|pattern syntax. Localized resources may override the
+            // description, but never the extension pattern.
+            dlg.Filter = Lang.CurrentLanguage.StartsWith("zh", StringComparison.OrdinalIgnoreCase)
+                ? "镜像文件 (*.ffu;*.img;*.vhd;*.vhdx;*.wim)|*.ffu;*.img;*.vhd;*.vhdx;*.wim|所有文件 (*.*)|*.*"
+                : Lang.GetString("ImageFilter");
             dlg.Title = Lang.GetString("OpenImageTitle");
             dlg.Multiselect = true;   // storage-pool images are often split across multiple VHDs
             if (dlg.ShowDialog() != DialogResult.OK) return;

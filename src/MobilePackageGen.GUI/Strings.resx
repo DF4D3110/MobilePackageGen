@@ -74,7 +74,7 @@
   <data name="LoadFailed" xml:space="preserve"><value>加载镜像失败。未找到磁盘。</value></data>
   <data name="ErrorLoading" xml:space="preserve"><value>加载镜像时出错:</value></data>
   <data name="OpenImageTitle" xml:space="preserve"><value>选择磁盘镜像</value></data>
-  <data name="ImageFilter" xml:space="preserve"><value>磁盘镜像|*.ffu;*.vhdx;*.vhd;*.wim;*.img;*.bin|所有文件|*.*</value></data>
+  <data name="ImageFilter" xml:space="preserve"><value>镜像文件 (*.ffu;*.img;*.vhd;*.vhdx;*.wim)|*.ffu;*.img;*.vhd;*.vhdx;*.wim|所有文件 (*.*)|*.*</value></data>
   <data name="OutputFolderTitle" xml:space="preserve"><value>选择输出文件夹</value></data>
   <data name="NoImageLoaded" xml:space="preserve"><value>请先加载磁盘镜像。</value></data>
   <data name="NoPackagesSelected" xml:space="preserve"><value>未选择任何包。</value></data>
