@@ -1,0 +1,44 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Platforms>x86;x64;ARM64</Platforms>
+    <AssemblyName>MobilePackageGen.Legacy</AssemblyName>
+    <AssemblyTitle>MobilePackageGen Legacy GUI</AssemblyTitle>
+    <AssemblyDescription>Legacy WinForms image package extraction interface.</AssemblyDescription>
+    <FileDescription>MobilePackageGen Legacy WinForms interface.</FileDescription>
+    <Product>MobilePackageGen Legacy</Product>
+    <Description>Legacy WinForms image package extraction interface.</Description>
+    <Company>DF4D3110</Company>
+    <Copyright>Copyright © 2026 DF4D3110</Copyright>
+    <Version>1.0.0</Version>
+    <FileVersion>1.0.0.0</FileVersion>
+    <InformationalVersion>1.0.0-legacy</InformationalVersion>
+    <ApplicationIcon>..\MobilePackageGen.GUI\Assets\MobilePackageGen.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MobilePackageGen.Common\MobilePackageGen.Common.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\MobilePackageGen.GUI\Program.cs" Link="Program.cs" />
+    <Compile Include="..\MobilePackageGen.GUI\MainForm.cs" Link="MainForm.cs" />
+    <Compile Include="..\MobilePackageGen.GUI\MainForm.Designer.cs" Link="MainForm.Designer.cs" />
+    <Compile Include="..\MobilePackageGen.GUI\PreviewForm.cs" Link="PreviewForm.cs" />
+    <Compile Include="..\MobilePackageGen.GUI\PreviewForm.Designer.cs" Link="PreviewForm.Designer.cs" />
+    <Compile Include="..\MobilePackageGen.GUI\PackageInfo.cs" Link="PackageInfo.cs" />
+    <Compile Include="..\MobilePackageGen.GUI\PackageEnumerator.cs" Link="PackageEnumerator.cs" />
+    <Compile Include="..\MobilePackageGen.GUI\FMFileInfo.cs" Link="FMFileInfo.cs" />
+    <Compile Include="..\MobilePackageGen.GUI\Lang.cs" Link="Lang.cs" />
+    <EmbeddedResource Include="..\MobilePackageGen.GUI\Strings.resx" Link="Strings.resx" />
+    <EmbeddedResource Include="..\MobilePackageGen.GUI\Strings.*.resx" Link="%(Filename)%(Extension)" />
+    <Content Include="..\MobilePackageGen.GUI\Assets\MobilePackageGen.ico" Link="Assets\MobilePackageGen.ico" />
+  </ItemGroup>
+
+</Project>

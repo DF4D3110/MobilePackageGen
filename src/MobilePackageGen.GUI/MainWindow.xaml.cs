@@ -14,6 +14,7 @@ public partial class MainWindow : Window
     private IEnumerable<IDisk>? loadedDisks;
     private UpdateHistory.UpdateHistory? updateHistory;
     private readonly List<FMFileInfo> allFMFiles = new();
+    private CompatibilityReport? compatibilityReport;
 
     public MainWindow()
     {
@@ -49,25 +50,30 @@ public partial class MainWindow : Window
         {
             SetBusy(true, "正在读取镜像...");
             SourceSummaryText.Text = $"正在加载 {paths.Length} 个输入源";
+            string outputPath = OutputPathTextBox.Text;
             var result = await Task.Run(() =>
             {
-                var disks = DiskLoader.LoadDisks(paths);
+                var disks = DiskLoader.LoadDisks(paths).ToList();
                 if (disks == null || !disks.Any())
                     throw new InvalidOperationException("没有找到可读取的分区或文件系统。");
 
                 var history = BuildMetadataHandler.GetUpdateHistory(disks);
-                var packages = PackageEnumerator.EnumerateAll(disks, OutputPathTextBox.Text);
-                return (disks, history, packages, EnumerateFMFiles(disks));
+                var packages = PackageEnumerator.EnumerateAll(disks, outputPath);
+                var report = ImageCompatibilityProbe.ProbeMany(paths);
+                var featureManifests = EnumerateFMFiles(disks);
+                return (disks, history, packages, featureManifests, report);
             });
 
             loadedDisks = result.disks;
             updateHistory = result.history;
             allFMFiles.Clear();
-            allFMFiles.AddRange(result.Item4);
+            allFMFiles.AddRange(result.featureManifests);
+            compatibilityReport = result.report;
+            CompatibilityReportTextBox.Text = compatibilityReport.ToString();
             allItems.Clear();
             foreach (var package in result.packages)
                 allItems.Add(PackageRow.FromPackage(package));
-            foreach (var fm in result.Item4)
+            foreach (var fm in result.featureManifests)
                 allItems.Add(PackageRow.FromFM(fm));
 
             SourceSummaryText.Text = paths.Length == 1 ? Path.GetFileName(paths[0]) : $"{paths.Length} 个镜像输入源";
@@ -111,6 +117,10 @@ public partial class MainWindow : Window
         }
 
         Directory.CreateDirectory(outputPath);
+        var disks = loadedDisks.ToList();
+        var history = updateHistory;
+        bool writeBuildLog = WriteBuildLogCheckBox.IsChecked == true;
+        bool uncompressedManifests = UncompressedManifestsCheckBox.IsChecked == true;
         try
         {
             SetBusy(true, "正在构建选中内容...");
@@ -121,7 +131,14 @@ public partial class MainWindow : Window
             ResultOutputText.Text = outputPath;
             ResultLogTextBox.Text = "构建已启动...";
             ShowPage("results");
-            await Task.Run(() => BuildSelected(selected, selectedFM, outputPath));
+            await Task.Run(() => BuildSelected(
+                disks,
+                history,
+                selected,
+                selectedFM,
+                outputPath,
+                writeBuildLog,
+                uncompressedManifests));
             ProgressBar.Value = 100;
             StatusText.Text = $"构建完成：{selected.Count + selectedFM.Count} 个项目";
             ResultHeadlineText.Text = "构建完成";
@@ -144,10 +161,16 @@ public partial class MainWindow : Window
         }
     }
 
-    private void BuildSelected(List<PackageInfo> selected, List<FMFileInfo> selectedFM, string outputPath)
+    private static void BuildSelected(
+        IReadOnlyList<IDisk> disks,
+        UpdateHistory.UpdateHistory? history,
+        List<PackageInfo> selected,
+        List<FMFileInfo> selectedFM,
+        string outputPath,
+        bool writeBuildLog,
+        bool uncompressedManifests)
     {
-        if (loadedDisks == null) return;
-        if (WriteBuildLogCheckBox.IsChecked == true)
+        if (writeBuildLog)
             Logging.SetLogFile(Path.Combine(outputPath, "build.log"));
         var cbsNames = selected.Where(package => package.Type == PackageType.CBS)
             .Select(package => Path.GetFileName(package.CabFileName))
@@ -160,15 +183,15 @@ public partial class MainWindow : Window
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
         if (cbsNames.Count > 0)
         {
-            CBSBuilder.UseUncompressedManifests = UncompressedManifestsCheckBox.IsChecked == true;
-            CBSBuilder.BuildCBS(loadedDisks, outputPath, updateHistory, cbsNames);
+            CBSBuilder.UseUncompressedManifests = uncompressedManifests;
+            CBSBuilder.BuildCBS(disks, outputPath, history, cbsNames);
         }
         if (spkgNames.Count > 0)
-            SPKGBuilder.BuildSPKG(loadedDisks, outputPath, updateHistory, spkgNames);
+            SPKGBuilder.BuildSPKG(disks, outputPath, history, spkgNames);
         if (driverNames.Count > 0)
-            DriverBuilder.BuildDrivers(loadedDisks, outputPath, updateHistory, driverNames);
-        ExtractFMFiles(selectedFM, outputPath);
-        ExtractAppx(selected, outputPath);
+            DriverBuilder.BuildDrivers(disks, outputPath, history, driverNames);
+        ExtractFMFiles(disks, selectedFM, outputPath);
+        ExtractAppx(disks, selected, outputPath);
     }
 
     private List<FMFileInfo> EnumerateFMFiles(IEnumerable<IDisk> disks)
@@ -202,10 +225,13 @@ public partial class MainWindow : Window
         return result;
     }
 
-    private void ExtractFMFiles(IEnumerable<FMFileInfo> files, string outputPath)
+    private static void ExtractFMFiles(
+        IEnumerable<IDisk> disks,
+        IEnumerable<FMFileInfo> files,
+        string outputPath)
     {
         foreach (var fm in files)
-        foreach (var disk in loadedDisks ?? Enumerable.Empty<IDisk>())
+        foreach (var disk in disks)
         foreach (var partition in disk.Partitions)
         {
             var fs = partition.FileSystem;
@@ -224,14 +250,17 @@ public partial class MainWindow : Window
         }
     }
 
-    private void ExtractAppx(IEnumerable<PackageInfo> selected, string outputPath)
+    private static void ExtractAppx(
+        IEnumerable<IDisk> disks,
+        IEnumerable<PackageInfo> selected,
+        string outputPath)
     {
         var names = selected.Where(p => p.Type == PackageType.Appx)
             .Select(p => p.Name.Split('_')[0] + "_" + p.Name.Split('_').Last())
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        if (names.Count == 0 || loadedDisks == null) return;
+        if (names.Count == 0) return;
         var index = 0;
-        foreach (var disk in loadedDisks)
+        foreach (var disk in disks)
         foreach (var partition in disk.Partitions)
         {
             var fs = partition.FileSystem;
@@ -289,6 +318,8 @@ public partial class MainWindow : Window
         allFMFiles.Clear();
         loadedDisks = null;
         updateHistory = null;
+        compatibilityReport = null;
+        CompatibilityReportTextBox.Text = "尚未加载镜像。导入镜像后可查看只读能力矩阵。";
         SourceSummaryText.Text = "尚未加载镜像";
         DetailsText.Text = "选择一个项目查看详情。";
         StatusText.Text = "就绪";
@@ -328,6 +359,14 @@ public partial class MainWindow : Window
     {
         ShowPage("validation");
         StatusText.Text = "当前页面：最终校验";
+    }
+
+    private void NavigateCompatibility_Click(object sender, RoutedEventArgs e)
+    {
+        ShowPage("compatibility");
+        CompatibilityReportTextBox.Text = compatibilityReport?.ToString() ??
+            "尚未加载镜像。导入镜像后可查看只读能力矩阵。";
+        StatusText.Text = "当前页面：兼容性报告";
     }
 
     private void CheckCatEnvironment_Click(object sender, RoutedEventArgs e) => CheckCatEnvironment();
@@ -386,6 +425,7 @@ public partial class MainWindow : Window
         ResultsPage.Visibility = page == "results" ? Visibility.Visible : Visibility.Collapsed;
         CatPage.Visibility = page == "cat" ? Visibility.Visible : Visibility.Collapsed;
         ValidationPage.Visibility = page == "validation" ? Visibility.Visible : Visibility.Collapsed;
+        CompatibilityPage.Visibility = page == "compatibility" ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void SetBusy(bool busy, string status)

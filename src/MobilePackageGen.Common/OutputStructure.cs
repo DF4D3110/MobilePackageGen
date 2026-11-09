@@ -29,6 +29,28 @@ public sealed record OutputPathPlan(
     public string Directory => Path.GetDirectoryName(FullPath) ?? Root;
 }
 
+public sealed record LegacyOutputPathPlan(
+    string SourcePath,
+    string RelativePath,
+    bool IsKnownRule,
+    bool IsSupported,
+    string Diagnostic);
+
+public static class LegacyOutputPlanner
+{
+    public static LegacyOutputPathPlan PreserveUnknown(string sourcePath)
+    {
+        if (string.IsNullOrWhiteSpace(sourcePath))
+            throw new ArgumentException("A source path is required.", nameof(sourcePath));
+        if (OutputPathNormalizer.ContainsTraversal(sourcePath))
+            throw new InvalidOperationException($"The legacy source path contains traversal: {sourcePath}");
+
+        string relative = OutputPathNormalizer.Normalize(sourcePath);
+        return new LegacyOutputPathPlan(sourcePath, relative, false, false,
+            "Legacy path preserved verbatim for review; no modern DriveX/OEMInput/FM rule was applied.");
+    }
+}
+
 public static class OutputPathNormalizer
 {
     public static bool ContainsTraversal(string path) =>

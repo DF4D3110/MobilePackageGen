@@ -15,6 +15,12 @@ OneCore Image Designer Preview
                 return;
             }
 
+            if (args.Length >= 2 && string.Equals(args[0], "--probe", StringComparison.OrdinalIgnoreCase))
+            {
+                RunProbe(args[1..]);
+                return;
+            }
+
             // Elevate to TrustedInstaller when not already running as TI.
             if (!TrustedInstallerHelper.IsTrustedInstaller())
             {
@@ -131,12 +137,53 @@ OneCore Image Designer Preview
             catch (InvalidOperationException) { traversalRejected = true; }
             if (!traversalRejected)
                 throw new InvalidOperationException("Output traversal self-test failed.");
+            LegacyOutputPathPlan legacyPlan = LegacyOutputPlanner.PreserveUnknown(@"Windows\LegacyPackages\old.cab");
+            if (legacyPlan.IsKnownRule || legacyPlan.IsSupported || legacyPlan.RelativePath != @"Windows\LegacyPackages\old.cab")
+                throw new InvalidOperationException("Legacy output planning self-test failed.");
             string root = Path.Combine(Path.GetTempPath(), "MobilePackageGenSelfTest");
             if (!OutputLayout.Cbs(root, "sample.cab").RelativePath.Equals("CBS\\sample.cab", StringComparison.OrdinalIgnoreCase) ||
                 !OutputLayout.OemInput(root).RelativePath.Equals("OEMInput.xml", StringComparison.OrdinalIgnoreCase))
                 throw new InvalidOperationException("Output layout self-test failed.");
 
-            Console.WriteLine("Self-test passed: OEMInput parsing and output traversal protection.");
+            using (var workspace = new TemporaryTestWorkspace())
+            {
+                string mbr = Path.Combine(workspace.Root, "synthetic.img");
+                using (FileStream stream = File.Create(mbr))
+                {
+                    stream.SetLength(1024 * 1024);
+                    stream.Position = 510;
+                    stream.WriteByte(0x55);
+                    stream.WriteByte(0xAA);
+                }
+                ImageCapabilityMatrix capability = ImageCompatibilityProbe.Probe(mbr, enumerateFileSystem: false);
+                if (capability.PartitionTable != PartitionTableKind.SuperFloppy)
+                    throw new InvalidOperationException("Image probe self-test failed.");
+            }
+
+            Console.WriteLine("Self-test passed: parsers, output traversal protection, image probe, and cleanup.");
+        }
+
+        private static void RunProbe(string[] inputPaths)
+        {
+            bool enumerate = true;
+            var paths = new List<string>();
+            foreach (string arg in inputPaths)
+            {
+                if (arg.Equals("--no-enumerate", StringComparison.OrdinalIgnoreCase))
+                    enumerate = false;
+                else
+                    paths.Add(arg);
+            }
+            if (paths.Count == 0)
+            {
+                Console.Error.WriteLine("Probe requires at least one image or directory path.");
+                return;
+            }
+
+            CompatibilityReport report = ImageCompatibilityProbe.ProbeMany(paths, enumerate);
+            Console.WriteLine(report);
+            foreach (ImageCapabilityMatrix image in report.Images.Where(x => !x.Exists))
+                Console.WriteLine($"SKIP: {image.InputPath}");
         }
     }
 }
