@@ -76,6 +76,20 @@ MobilePackageGen.exe <Path to MainOS/Data/EFIESP...> <Output folder CBSs>
 
 # 从 FFU / VHDX / VHD / 裸 NTFS/FAT 镜像 / 存储池磁盘阵列提取
 MobilePackageGen.exe <Path to image file(s)> <Output folder CBSs>
+
+# 只读探测早期 WP8/WP8.1 镜像，输出容器/分区表/扇区/文件系统/关键目录能力矩阵
+MobilePackageGen.exe --probe <Path to image or directory> [more paths...]
+MobilePackageGen.exe --probe --no-enumerate <Path to image>
+```
+
+`--probe` 不复制或修改源镜像；不存在的路径会明确输出 `SKIP`，格式或权限阻塞会输出诊断而不是伪造成功。输出构建仍采用保守的原路径策略，不承诺生成可启动镜像。
+
+早期镜像可作为可选的本机集成探测输入（不会提交到仓库）：
+
+```text
+E:\wcos\6.2.8325.0.fbl_core1_mobile_dev_wp.120422-1700\6.2.8325.0_RX100.ffu
+E:\wcos\8.0.9754.8.WP8_TRIALBUILD.20120727-1514\RX-100_8.0.9754.8_3312.img
+E:\wcos\8.10.12194.60.WPB_AFB_FB4_INT(ravenbld).20130920-0300\SurfacePhone.img
 ```
 
 > 注意：部分功能需要以 Trusted Installer (TI) 权限运行。GUI 版本已集成 NSudo 自动提权；CLI 版本请以管理员/最高权限运行。

@@ -31,6 +31,8 @@
                             Background="Transparent" Foreground="#D7E4F5" BorderThickness="0" Margin="0,8,0,0"/>
                     <Button Content="05  最终校验" HorizontalContentAlignment="Left" Click="NavigateValidation_Click"
                             Background="Transparent" Foreground="#D7E4F5" BorderThickness="0" Margin="0,8,0,0"/>
+                    <Button Content="06  兼容性报告" HorizontalContentAlignment="Left" Click="NavigateCompatibility_Click"
+                            Background="Transparent" Foreground="#D7E4F5" BorderThickness="0" Margin="0,8,0,0"/>
                 </StackPanel>
                 <StackPanel DockPanel.Dock="Bottom">
                     <TextBlock Text="提取与构建工作台" Foreground="#9DB1CA" FontSize="12"/>
@@ -241,6 +243,16 @@
                 <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right">
                     <Button Content="返回内容浏览" Click="NavigateBrowse_Click"/>
                 </StackPanel>
+            </Grid>
+
+            <Grid Grid.Row="1" x:Name="CompatibilityPage" Visibility="Collapsed">
+                <Border Background="{StaticResource CardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="24">
+                    <StackPanel>
+                        <TextBlock Text="镜像兼容性报告" FontSize="26" FontWeight="SemiBold"/>
+                        <TextBlock Text="只读探测容器、分区表、扇区、文件系统和早期系统关键目录；不会复制或修改源镜像。" Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap" Margin="0,8,0,18"/>
+                        <TextBox x:Name="CompatibilityReportTextBox" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Height="500" BorderThickness="0" Background="#F8FAFD"/>
+                    </StackPanel>
+                </Border>
             </Grid>
 
             <Grid Grid.Row="2" Margin="0,18,0,0">

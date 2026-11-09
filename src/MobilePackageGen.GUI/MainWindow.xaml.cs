@@ -14,6 +14,7 @@ public partial class MainWindow : Window
     private IEnumerable<IDisk>? loadedDisks;
     private UpdateHistory.UpdateHistory? updateHistory;
     private readonly List<FMFileInfo> allFMFiles = new();
+    private CompatibilityReport? compatibilityReport;
 
     public MainWindow()
     {
@@ -57,13 +58,16 @@ public partial class MainWindow : Window
 
                 var history = BuildMetadataHandler.GetUpdateHistory(disks);
                 var packages = PackageEnumerator.EnumerateAll(disks, OutputPathTextBox.Text);
-                return (disks, history, packages, EnumerateFMFiles(disks));
+                var report = ImageCompatibilityProbe.ProbeMany(paths);
+                return (disks, history, packages, EnumerateFMFiles(disks), report);
             });
 
             loadedDisks = result.disks;
             updateHistory = result.history;
             allFMFiles.Clear();
             allFMFiles.AddRange(result.Item4);
+            compatibilityReport = result.report;
+            CompatibilityReportTextBox.Text = compatibilityReport.ToString();
             allItems.Clear();
             foreach (var package in result.packages)
                 allItems.Add(PackageRow.FromPackage(package));
@@ -289,6 +293,8 @@ public partial class MainWindow : Window
         allFMFiles.Clear();
         loadedDisks = null;
         updateHistory = null;
+        compatibilityReport = null;
+        CompatibilityReportTextBox.Text = "尚未加载镜像。导入镜像后可查看只读能力矩阵。";
         SourceSummaryText.Text = "尚未加载镜像";
         DetailsText.Text = "选择一个项目查看详情。";
         StatusText.Text = "就绪";
@@ -328,6 +334,14 @@ public partial class MainWindow : Window
     {
         ShowPage("validation");
         StatusText.Text = "当前页面：最终校验";
+    }
+
+    private void NavigateCompatibility_Click(object sender, RoutedEventArgs e)
+    {
+        ShowPage("compatibility");
+        CompatibilityReportTextBox.Text = compatibilityReport?.ToString() ??
+            "尚未加载镜像。导入镜像后可查看只读能力矩阵。";
+        StatusText.Text = "当前页面：兼容性报告";
     }
 
     private void CheckCatEnvironment_Click(object sender, RoutedEventArgs e) => CheckCatEnvironment();
@@ -386,6 +400,7 @@ public partial class MainWindow : Window
         ResultsPage.Visibility = page == "results" ? Visibility.Visible : Visibility.Collapsed;
         CatPage.Visibility = page == "cat" ? Visibility.Visible : Visibility.Collapsed;
         ValidationPage.Visibility = page == "validation" ? Visibility.Visible : Visibility.Collapsed;
+        CompatibilityPage.Visibility = page == "compatibility" ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void SetBusy(bool busy, string status)
