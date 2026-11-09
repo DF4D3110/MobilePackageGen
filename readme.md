@@ -96,11 +96,15 @@ E:\wcos\8.10.12194.60.WPB_AFB_FB4_INT(ravenbld).20130920-0300\SurfacePhone.img
 
 ### GUI 版本
 
-直接运行 `MobilePackageGen.GUI.exe`（OneCore Image Designer Preview）：
+WPF Studio 直接运行 `MobilePackageGen.Studio.exe`（OneCore Image Designer Preview）：
 - 支持多选镜像/磁盘文件（多磁盘阵列一次导入）
 - 包列表展示（含 Appx 与 CAB，按 FM 结构摆放输出）
 - 全程日志输出到目标目录，缺失包也会在日志中说明
 - 自动以最高权限运行（NSudo 提权）
+
+同时保留早期 WinForms 入口 `MobilePackageGen.Legacy.exe`，用于需要原始树形包浏览和旧工作流的环境。两个 GUI 使用同一公共核心库，Legacy 文件属性明确标记为 **MobilePackageGen Legacy**，不会替代或删除 WPF Studio。
+
+`publish_win_x64.cmd` 和 `publish_win_arm64.cmd` 默认将两个 GUI 放入 `D:\Test.MPG`；可通过 `MOBILEPACKAGEGEN_PUBLISH_ROOT` 环境变量覆盖发布目录。发布目录只用于生成产物，不会写入仓库。
 
 ## 第三方组件与来源
 
